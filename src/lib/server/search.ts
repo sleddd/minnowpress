@@ -19,16 +19,38 @@ export const SEARCH_LIMIT_MESSAGE =
 /**
  * Records a search and says whether it's within the limit. Recorded before it's counted, so a
  * burst of parallel searches can't slip under; a refused search still counts.
+ *
+ * The throttle is a cost control, not a security gate: if recording the search fails (say, the
+ * database hasn't been migrated yet), the search goes ahead and the failure is logged.
  */
-export async function allowSearch(db: DB, ip: string, now = new Date()): Promise<boolean> {
+export async function allowSearch(
+	db: DB,
+	ip: string,
+	now = new Date(),
+	log: (message: string, error: unknown) => void = console.error
+): Promise<boolean> {
 	const since = new Date(now.getTime() - SEARCH_LIMITS.windowMinutes * 60_000);
-	await db.delete(searchRequests).where(lt(searchRequests.createdAt, since));
-	await db.insert(searchRequests).values({ ip, createdAt: now });
-	const [{ n }] = await db
-		.select({ n: count() })
-		.from(searchRequests)
-		.where(and(eq(searchRequests.ip, ip), gt(searchRequests.createdAt, since)));
-	return n <= SEARCH_LIMITS.perAddress;
+	try {
+		await db.delete(searchRequests).where(lt(searchRequests.createdAt, since));
+		await db.insert(searchRequests).values({ ip, createdAt: now });
+		const [{ n }] = await db
+			.select({ n: count() })
+			.from(searchRequests)
+			.where(and(eq(searchRequests.ip, ip), gt(searchRequests.createdAt, since)));
+		return n <= SEARCH_LIMITS.perAddress;
+	} catch (e) {
+		log('Search throttle failed; allowing the search', e);
+		return true;
+	}
+}
+
+/** The key the throttle counts by: the client's address, or "unknown" when the host can't say. */
+export function searchKey(getClientAddress: () => string): string {
+	try {
+		return getClientAddress() || 'unknown';
+	} catch {
+		return 'unknown';
+	}
 }
 
 /** Trims and bounds a raw query; null when it's too short to search. */

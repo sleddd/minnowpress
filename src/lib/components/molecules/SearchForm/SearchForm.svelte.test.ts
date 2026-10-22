@@ -23,9 +23,16 @@ describe('SearchForm', () => {
 			.toHaveAttribute('type', 'submit');
 	});
 
-	it('takes a custom id and placeholder', async () => {
-		const screen = await render(SearchForm, { id: 'menu-search', placeholder: 'Search…' });
+	it('keeps the placeholder short by default', async () => {
+		const screen = await render(SearchForm, {});
 		await expect.element(screen.getByRole('searchbox')).toHaveAttribute('placeholder', 'Search…');
+	});
+
+	it('takes a custom id and placeholder', async () => {
+		const screen = await render(SearchForm, { id: 'menu-search', placeholder: 'Find a story…' });
+		await expect
+			.element(screen.getByRole('searchbox'))
+			.toHaveAttribute('placeholder', 'Find a story…');
 		expect(screen.container.querySelector('#menu-search')).not.toBeNull();
 	});
 });
