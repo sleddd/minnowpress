@@ -121,14 +121,13 @@ Business logic lives in `src/lib/server/` as plain functions that take the datab
 
    The AWS variables start with `BEDROCK_` because Vercel reserves the usual `AWS_*` names.
 
-4. **Migrate**, and optionally import the archive, against Turso:
+4. **Import the archive** (optional) against Turso:
 
    ```sh
-   DATABASE_URL=libsql://… DATABASE_AUTH_TOKEN=… npm run db:migrate
    DATABASE_URL=libsql://… DATABASE_AUTH_TOKEN=… npm run import:ficly -- ficly_export.sql.gz
    ```
 
-5. **Push.** Vercel builds and deploys. `vercel.json` schedules the challenge job daily (00:05 UTC), activity scoring daily (00:30 UTC), and the email digest on Mondays. Each job requires `Authorization: Bearer $CRON_SECRET`.
+5. **Push.** Vercel applies any pending migrations (`scripts/migrate.ts`, run by the build command in `vercel.json`), then builds and deploys. To migrate by hand instead: `DATABASE_URL=libsql://… DATABASE_AUTH_TOKEN=… npm run db:migrate`. `vercel.json` schedules the challenge job daily (00:05 UTC), activity scoring daily (00:30 UTC), and the email digest on Mondays. Each job requires `Authorization: Bearer $CRON_SECRET`.
 
 Keep the Turso token, Vercel account, GitHub account and the email inbox behind two-factor sign-in: together they are the keys to the site.
 
