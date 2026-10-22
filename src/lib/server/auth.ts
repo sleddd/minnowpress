@@ -80,6 +80,18 @@ export async function createLoginToken(db: DB, email: string, now = new Date()):
 	return token;
 }
 
+/** The email a live token was issued for, without using it up; null if it's unknown or expired. */
+export async function peekLoginToken(
+	db: DB,
+	token: string,
+	now = new Date()
+): Promise<string | null> {
+	const row = await db.query.loginTokens.findFirst({
+		where: and(eq(loginTokens.tokenHash, await hashToken(token)), gt(loginTokens.expiresAt, now))
+	});
+	return row?.email ?? null;
+}
+
 /** Returns the email the token was issued for, or null. A token works once. */
 export async function consumeLoginToken(
 	db: DB,
@@ -128,7 +140,7 @@ export async function validateSession(
 		.innerJoin(users, eq(users.id, sessions.userId))
 		.where(eq(sessions.id, id));
 	if (!row) return null;
-	if (row.expiresAt.getTime() <= now.getTime()) {
+	if (row.expiresAt.getTime() <= now.getTime() || row.user.suspendedAt) {
 		await db.delete(sessions).where(eq(sessions.id, id));
 		return null;
 	}
@@ -186,11 +198,15 @@ export function sessionCookieOptions(expiresAt: Date, secure: boolean) {
 	return { path: '/', httpOnly: true, sameSite: 'lax' as const, secure, expires: expiresAt };
 }
 
-/** Only allows same-site relative paths, so ?next= cannot redirect off-site. */
+/**
+ * Only allows same-site relative paths, so ?next= cannot redirect off-site. Browsers drop tabs
+ * and newlines from URLs and read "\\" as "/", so "/\t/evil.com" would land on evil.com: any
+ * control character or backslash makes the path unsafe.
+ */
 export function safeNext(next: string | null | undefined): string {
-	return next && next.startsWith('/') && !next.startsWith('//') && !next.startsWith('/\\')
-		? next
-		: '/';
+	// eslint-disable-next-line no-control-regex -- matching control characters is the point
+	const unsafe = /[\u0000-\u001F\u007F\\]/;
+	return next && next.startsWith('/') && !next.startsWith('//') && !unsafe.test(next) ? next : '/';
 }
 
 export function requireUser(user: User | null, url: URL): User {

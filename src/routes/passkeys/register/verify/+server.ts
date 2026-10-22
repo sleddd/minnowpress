@@ -22,7 +22,8 @@ export const POST: RequestHandler = async ({ locals, cookies, request }) => {
 		);
 		return json({ ok: true, id: passkey.id });
 	} catch (e) {
-		if (e instanceof ValidationError) error(400, 'That passkey could not be verified.');
+		if (e instanceof ValidationError)
+			error(400, e.fields.passkey ?? 'That passkey could not be verified.');
 		throw e;
 	}
 };

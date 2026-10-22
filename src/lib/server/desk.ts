@@ -1,4 +1,4 @@
-import { and, count, desc, eq, ne } from 'drizzle-orm';
+import { and, count, desc, eq, isNull, ne } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/sqlite-core';
 import type { DB } from './db/client';
 import { comments, stories, users } from './db/schema';
@@ -26,7 +26,14 @@ export async function recentActivity(db: DB, userId: number, limit = 10): Promis
 			.from(comments)
 			.innerJoin(stories, eq(stories.id, comments.storyId))
 			.innerJoin(users, eq(users.id, comments.authorId))
-			.where(and(eq(stories.authorId, userId), ne(comments.authorId, userId)))
+			.where(
+				and(
+					eq(stories.authorId, userId),
+					ne(comments.authorId, userId),
+					isNull(comments.deletedAt),
+					eq(stories.status, 'published')
+				)
+			)
 			.orderBy(desc(comments.createdAt))
 			.limit(limit),
 		db
@@ -41,7 +48,12 @@ export async function recentActivity(db: DB, userId: number, limit = 10): Promis
 			.innerJoin(stories, eq(stories.id, child.parentId))
 			.innerJoin(users, eq(users.id, child.authorId))
 			.where(
-				and(eq(stories.authorId, userId), ne(child.authorId, userId), eq(child.status, 'published'))
+				and(
+					eq(stories.authorId, userId),
+					ne(child.authorId, userId),
+					eq(child.status, 'published'),
+					ne(stories.status, 'removed')
+				)
 			)
 			.orderBy(desc(child.publishedAt))
 			.limit(limit)

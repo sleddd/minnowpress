@@ -1,7 +1,7 @@
 import { redirect } from '@sveltejs/kit';
 import { dev } from '$app/env';
 import { ADMIN_EMAILS } from '$app/env/private';
-import { consumeLoginToken, safeNext, signIn } from '#lib/server/auth.ts';
+import { consumeLoginToken, peekLoginToken, safeNext, signIn } from '#lib/server/auth.ts';
 import { db } from '#lib/server/db/index.ts';
 import { ForbiddenError } from '#lib/server/errors.ts';
 import { formString } from '#lib/server/forms.ts';
@@ -9,11 +9,13 @@ import { findOrCreateUserByEmail } from '#lib/server/users.ts';
 import type { Actions, PageServerLoad } from './$types';
 
 // Opening the link only shows a button; signing in takes a POST, so email scanners
-// that prefetch links can't use up the one-time token.
-export const load: PageServerLoad = ({ url }) => {
+// that prefetch links can't use up the one-time token. The page names the account, so someone
+// sent a link to another person's account can see it isn't theirs before signing in.
+export const load: PageServerLoad = async ({ url }) => {
 	const token = url.searchParams.get('token');
-	if (!token) redirect(303, '/login?error=link');
-	return { token, next: safeNext(url.searchParams.get('next')) };
+	const email = token ? await peekLoginToken(db, token) : null;
+	if (!token || !email) redirect(303, '/login?error=link');
+	return { token, email, next: safeNext(url.searchParams.get('next')) };
 };
 
 export const actions: Actions = {

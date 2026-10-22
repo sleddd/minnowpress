@@ -19,6 +19,7 @@ const {
 	finishAuthentication,
 	finishRegistration,
 	listPasskeys,
+	PASSKEYS_MAX,
 	registrationOptions,
 	relyingParty,
 	removePasskey
@@ -92,6 +93,17 @@ describe('registration', () => {
 		expect(await listPasskeys(db, user.id)).toMatchObject([{ id: 'cred-1', name: 'MacBook' }]);
 	});
 
+	it('caps how many passkeys one account can add', async () => {
+		for (let i = 0; i < PASSKEYS_MAX; i++) {
+			verifyRegistrationResponse.mockResolvedValueOnce(registered(`k${i}`));
+			await finishRegistration(db, user, {} as never, 'c', rp);
+		}
+		const err = await finishRegistration(db, user, {} as never, 'c', rp).catch((e) => e);
+		expect(err).toBeInstanceOf(ValidationError);
+		expect(err.fields.passkey).toMatch(/up to 10 passkeys/);
+		expect(verifyRegistrationResponse).toHaveBeenCalledTimes(PASSKEYS_MAX);
+	});
+
 	it('defaults the name and rejects unverified or failing responses', async () => {
 		verifyRegistrationResponse.mockResolvedValueOnce(registered('c2'));
 		expect((await finishRegistration(db, user, {} as never, 'c', rp, '   ')).name).toBe('Passkey');
@@ -144,7 +156,11 @@ describe('authentication', () => {
 		await expect(finishAuthentication(db, { id: 'cred-1' } as never, 'c', rp)).rejects.toThrow(
 			ForbiddenError
 		);
-		await db.update(users).set({ isArchive: true }).where(eq(users.id, user.id));
+		await db.update(users).set({ suspendedAt: new Date() }).where(eq(users.id, user.id));
+		await expect(finishAuthentication(db, { id: 'cred-1' } as never, 'c', rp)).rejects.toThrow(
+			ForbiddenError
+		);
+		await db.update(users).set({ suspendedAt: null, isArchive: true }).where(eq(users.id, user.id));
 		await expect(finishAuthentication(db, { id: 'cred-1' } as never, 'c', rp)).rejects.toThrow(
 			ForbiddenError
 		);

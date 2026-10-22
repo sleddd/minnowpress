@@ -2,7 +2,7 @@ import { and, asc, count, desc, eq, inArray } from 'drizzle-orm';
 import { averageRating } from '#lib/rating.ts';
 import { normalizeBody, validateStoryInput } from '#lib/text.ts';
 import type { DB } from './db/client';
-import { challenges, stories, storyTags, tags, users, type Story } from './db/schema';
+import { challenges, stories, storyTags, tags, users, type Story, type User } from './db/schema';
 import { ForbiddenError, NotFoundError, ValidationError } from './errors';
 
 export type Relation = 'sequel' | 'prequel';
@@ -47,6 +47,18 @@ export function archiveOf(row: {
 		author: row.archiveAuthor ?? 'Unknown',
 		authorUrl: row.archiveAuthorUrl
 	};
+}
+
+/**
+ * Mature stories are for readers who turned them on in Settings, plus the author and moderators.
+ * Everyone else gets the title and a notice: never the text, its comments, or a way to act on it.
+ */
+export function matureHiddenFrom(
+	story: Pick<Story, 'isMature' | 'authorId'>,
+	viewer: Pick<User, 'id' | 'showMature' | 'role'> | null
+): boolean {
+	const staff = viewer?.role === 'mod' || viewer?.role === 'admin';
+	return story.isMature && !viewer?.showMature && viewer?.id !== story.authorId && !staff;
 }
 
 export const authorColumns = {

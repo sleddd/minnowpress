@@ -80,6 +80,25 @@ describe('notifyContinuation', () => {
 		expect(sent[0].text).toContain(`/s/${sequel.id}`);
 	});
 
+	it('does not quote a mature continuation to an author who has not opted in', async () => {
+		const root = await createStory(db, alice.id, input());
+		const body = 'Something only for opted-in readers.' + PAD;
+		const sequel = await continueStory(
+			db,
+			bob.id,
+			root.id,
+			'sequel',
+			input({ body, isMature: true })
+		);
+		await notifyContinuation(db, ctx, sequel.id);
+		expect(sent[0].text).not.toContain('Something only');
+		expect(sent[0].text).toContain('marked mature');
+
+		await db.update(users).set({ showMature: true }).where(eq(users.id, alice.id));
+		await notifyContinuation(db, ctx, sequel.id);
+		expect(sent[1].text).toContain('Something only');
+	});
+
 	it('skips roots, drafts, self-continuations, and opted-out authors', async () => {
 		const root = await createStory(db, alice.id, input());
 		expect(await notifyContinuation(db, ctx, root.id)).toBe(false);

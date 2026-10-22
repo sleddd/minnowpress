@@ -36,6 +36,8 @@ export const users = sqliteTable('users', {
 		.default('light'),
 	// The system account that owns imported archive stories; it never signs in or gets email.
 	isArchive: integer('is_archive', { mode: 'boolean' }).notNull().default(false),
+	// Set by a moderator: the member is signed out everywhere and can't sign back in.
+	suspendedAt: integer('suspended_at', { mode: 'timestamp_ms' }),
 	createdAt: createdAt()
 });
 

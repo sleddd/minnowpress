@@ -7,7 +7,7 @@ import {
 	type RegistrationResponseJSON
 } from '@simplewebauthn/server';
 import { isoBase64URL } from '@simplewebauthn/server/helpers';
-import { and, asc, eq } from 'drizzle-orm';
+import { and, asc, count, eq } from 'drizzle-orm';
 import type { DB } from './db/client';
 import { passkeys, users, type Passkey, type User } from './db/schema';
 import { ForbiddenError, NotFoundError, ValidationError } from './errors';
@@ -16,6 +16,8 @@ import { ForbiddenError, NotFoundError, ValidationError } from './errors';
 export const CHALLENGE_COOKIE = 'webauthn_challenge';
 export const CHALLENGE_TTL_SECONDS = 5 * 60;
 export const PASSKEY_NAME_MAX = 50;
+/** More than anyone needs, and a ceiling on rows one account can add. */
+export const PASSKEYS_MAX = 10;
 
 export interface RelyingParty {
 	id: string;
@@ -63,6 +65,14 @@ export async function finishRegistration(
 	rp: RelyingParty,
 	name = 'Passkey'
 ): Promise<Passkey> {
+	const [{ n }] = await db
+		.select({ n: count() })
+		.from(passkeys)
+		.where(eq(passkeys.userId, user.id));
+	if (n >= PASSKEYS_MAX)
+		throw new ValidationError({
+			passkey: `You can have up to ${PASSKEYS_MAX} passkeys. Remove one to add another.`
+		});
 	const result = await verifyRegistrationResponse({
 		response,
 		expectedChallenge,
@@ -104,7 +114,8 @@ export async function finishAuthentication(
 		.innerJoin(users, eq(users.id, passkeys.userId))
 		.where(eq(passkeys.id, response.id));
 	if (!row) throw new NotFoundError('Unknown passkey');
-	if (row.user.isArchive) throw new ForbiddenError('This account cannot sign in.');
+	if (row.user.isArchive || row.user.suspendedAt)
+		throw new ForbiddenError('This account cannot sign in.');
 
 	const result = await verifyAuthenticationResponse({
 		response,

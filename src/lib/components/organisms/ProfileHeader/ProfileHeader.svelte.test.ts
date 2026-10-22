@@ -52,4 +52,39 @@ describe('ProfileHeader', () => {
 		await expect.element(screen.getByRole('button', { name: 'Follow' })).not.toBeInTheDocument();
 		await expect.element(screen.getByRole('link', { name: 'jane.dev' })).not.toBeInTheDocument();
 	});
+
+	it('shows moderators a suspend button, or a way to lift a suspension', async () => {
+		const screen = await render(ProfileHeader, {
+			profile,
+			counts,
+			isSelf: false,
+			following: false,
+			signedIn: true,
+			moderation: { suspended: false }
+		});
+		const suspend = screen.getByRole('button', { name: 'Suspend member' });
+		await expect.element(suspend).toBeInTheDocument();
+		expect(screen.container.querySelector('form.moderation')?.getAttribute('action')).toBe(
+			'?/suspend'
+		);
+		await screen.rerender({ moderation: { suspended: true } });
+		await expect
+			.element(screen.getByRole('button', { name: 'Lift suspension' }))
+			.toBeInTheDocument();
+		await expect.element(screen.getByText(/can’t sign in/)).toBeInTheDocument();
+		await expectAccessible(screen.container);
+	});
+
+	it('shows no moderation controls by default', async () => {
+		const screen = await render(ProfileHeader, {
+			profile,
+			counts,
+			isSelf: false,
+			following: false,
+			signedIn: true
+		});
+		await expect
+			.element(screen.getByRole('button', { name: 'Suspend member' }))
+			.not.toBeInTheDocument();
+	});
 });

@@ -5,6 +5,32 @@ export const TITLE_MAX = 100;
 export const TAG_MAX_COUNT = 5;
 export const TAG_MAX_LENGTH = 30;
 export const USERNAME_PATTERN = /^[a-z0-9_]{3,20}$/;
+/** Names that would read as the site or its staff speaking. Nobody can take them. */
+export const RESERVED_USERNAMES = new Set([
+	'abuse',
+	'admin',
+	'administrator',
+	'anonymous',
+	'archive',
+	'ficly',
+	'help',
+	'hello',
+	'minnowpress',
+	'mod',
+	'moderator',
+	'moderators',
+	'no_reply',
+	'noreply',
+	'official',
+	'postmaster',
+	'root',
+	'security',
+	'staff',
+	'support',
+	'system',
+	'team',
+	'webmaster'
+]);
 
 const segmenter = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
 
