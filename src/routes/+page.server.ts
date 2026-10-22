@@ -1,3 +1,4 @@
+import { refreshActivityIfStale } from '#lib/server/activity.ts';
 import { countEntries, ensureCurrentChallenge, todaysPrompt } from '#lib/server/challenges.ts';
 import { db } from '#lib/server/db/index.ts';
 import { activeFeed, latestFeed, popularFeed } from '#lib/server/feeds.ts';
@@ -8,8 +9,9 @@ const COLUMN_SIZE = 6;
 
 export const load: PageServerLoad = async ({ locals }) => {
 	const opts = { viewer: locals.user, pageSize: COLUMN_SIZE };
-	// If nothing is open, the first challenge in line starts now.
-	await ensureCurrentChallenge(db);
+	// If nothing is open, the first challenge in line starts now; the Active column is rescored
+	// here, on the visit, when it's gone stale.
+	await Promise.all([ensureCurrentChallenge(db), refreshActivityIfStale(db)]);
 	const [popular, active, recent, tags, prompt] = await Promise.all([
 		popularFeed(db, opts),
 		activeFeed(db, opts),

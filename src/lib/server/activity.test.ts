@@ -1,8 +1,13 @@
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { computeActivityScore, recomputeActivityScores } from './activity';
+import {
+	ACTIVITY_MAX_AGE,
+	computeActivityScore,
+	recomputeActivityScores,
+	refreshActivityIfStale
+} from './activity';
 import type { DB } from './db/client';
-import { stories } from './db/schema';
+import { jobRuns, stories } from './db/schema';
 import { rateStory } from './ratings';
 import { addComment } from './social';
 import { continueStory, createStory, removeStory } from './stories';
@@ -74,5 +79,42 @@ describe('recomputeActivityScores', () => {
 		expect(await recomputeActivityScores(db)).toBe(0);
 		expect(await score(old.id)).toBe(0);
 		expect(await score(gone.id)).toBe(0);
+	});
+});
+
+describe('refreshActivityIfStale', () => {
+	let db: DB;
+	beforeEach(async () => {
+		db = await createTestDb();
+	});
+
+	const score = async (id: number) =>
+		(await db.select().from(stories).where(eq(stories.id, id)))[0].activityScore;
+
+	it('rescores on the first visit, then not again until the scores are stale', async () => {
+		const a = await makeUser(db);
+		const now = new Date('2026-10-22T12:00:00Z');
+		const story = await createStory(db, a.id, {
+			title: 'T',
+			body: 'B' + PAD,
+			tags: [],
+			publish: true
+		});
+		expect(await score(story.id)).toBe(0);
+		expect(await refreshActivityIfStale(db, now)).toBe(true);
+		expect(await score(story.id)).toBeGreaterThan(0);
+		expect(await refreshActivityIfStale(db, new Date(now.getTime() + ACTIVITY_MAX_AGE - 1))).toBe(
+			false
+		);
+		const later = new Date(now.getTime() + ACTIVITY_MAX_AGE);
+		expect(await refreshActivityIfStale(db, later)).toBe(true);
+		expect((await db.select().from(jobRuns))[0]).toEqual({ name: 'activity', ranAt: later });
+	});
+
+	it('never breaks the page when rescoring fails', async () => {
+		await db.run(sql`drop table job_runs`);
+		const logged: unknown[] = [];
+		expect(await refreshActivityIfStale(db, new Date(), (m, e) => logged.push(m, e))).toBe(false);
+		expect(logged[0]).toMatch(/rescoring failed/);
 	});
 });
