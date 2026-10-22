@@ -181,6 +181,7 @@
 	.body {
 		display: grid;
 		gap: var(--space-3);
+		min-width: 0;
 		padding-top: var(--space-6);
 	}
 
@@ -200,10 +201,13 @@
 		text-decoration: underline;
 	}
 
+	/* The prompt as written, wrapped: no clipping, and no word too long to wrap. */
 	.prompt {
 		max-width: var(--measure);
 		font-size: var(--text-lg);
 		line-height: var(--leading-prose);
+		white-space: pre-line;
+		overflow-wrap: anywhere;
 	}
 
 	.prompt strong {
@@ -295,6 +299,7 @@
 		font-style: italic;
 		line-height: var(--leading-prose);
 		white-space: pre-line;
+		overflow-wrap: anywhere;
 	}
 
 	.tags {

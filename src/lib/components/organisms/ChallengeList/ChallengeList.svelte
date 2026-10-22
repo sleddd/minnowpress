@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { daysLeft, excerpt, formatDate, pluralize } from '#lib/format.ts';
+	import { daysLeft, formatDate, pluralize } from '#lib/format.ts';
 	import type { ChallengeView } from '#lib/types.ts';
 	import { Badge, Heading, Link, Text } from '../../atoms/index.ts';
 	import { Pagination } from '../../molecules/index.ts';
@@ -42,7 +42,7 @@
 	<li class="row">
 		<div class="what">
 			<Link href="/challenges/{c.id}" variant="story">{c.title}</Link>
-			<Text size="sm">{excerpt(c.promptText, 90)}</Text>
+			<p class="row-prompt">{c.promptText}</p>
 		</div>
 		<span class="dates">{note}</span>
 		<span class="entries">{pluralize(c.entries ?? 0, 'entry', 'entries')}</span>
@@ -213,9 +213,20 @@
 		text-decoration: underline;
 	}
 
-	.prompt {
+	/* Prompts are shown whole, wrapped as written: no clipping, and no word too long to wrap. */
+	.prompt,
+	.row-prompt {
 		max-width: var(--measure);
+		white-space: pre-line;
+		overflow-wrap: anywhere;
+	}
+
+	.prompt {
 		font-size: var(--text-lg);
+	}
+
+	.row-prompt {
+		font-size: var(--text-sm);
 	}
 
 	.facts {
@@ -294,6 +305,7 @@
 	.what {
 		display: grid;
 		gap: var(--space-1);
+		min-width: 0;
 	}
 
 	.what :global(a) {
