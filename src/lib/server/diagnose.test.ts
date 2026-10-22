@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { createDb } from './db/client';
+import { challenges } from './db/schema';
 import { refreshArchiveAuthors } from './authors';
 import { importFicly, readFiclyDump } from './archive/ficly';
 import {
@@ -108,10 +109,21 @@ describe('captureStatements and the scenarios', () => {
 		const db = createDb(url);
 		await migrate(db, { migrationsFolder: 'drizzle' });
 		const author = await makeUser(db, { username: 'writer' });
+		const [challenge] = await db
+			.insert(challenges)
+			.values({
+				title: 'Owls',
+				promptText: 'Write about an owl.',
+				source: 'human',
+				status: 'approved',
+				startsAt: new Date(0)
+			})
+			.returning();
 		await createStory(db, author.id, {
 			title: 'Owl',
 			body: 'An owl.' + PAD,
 			tags: ['sea'],
+			challengeId: challenge.id,
 			publish: true
 		});
 		await importFicly(
@@ -151,7 +163,7 @@ describe('captureStatements and the scenarios', () => {
 		expect(captured).toEqual(names);
 		const empty = await createTestDb();
 		await expect(
-			Promise.all(Object.values(SCENARIOS).map((run) => run(empty)))
+			Promise.all(Object.values(SCENARIOS).map((run) => run(empty, empty)))
 		).resolves.toHaveLength(names.length);
 	});
 
@@ -194,6 +206,14 @@ describe('captureStatements and the scenarios', () => {
 			connect: () => createClient({ url })
 		});
 		expect(all.scenarios.map((s) => s.name)).toEqual(Object.keys(SCENARIOS));
+		for (const name of [
+			'chain page, biggest chain',
+			'challenge page, most entries',
+			'desk, signed in'
+		])
+			expect(all.scenarios.find((s) => s.name === name)?.statements.length, name).toBeGreaterThan(
+				0
+			);
 		expect(all.scenarios[0].statements.at(-1)?.error).toBe('skipped');
 
 		// Without an injected connection it opens the real one, which doesn't exist here.
