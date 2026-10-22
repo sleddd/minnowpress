@@ -86,10 +86,10 @@ export function magicLinkEmail(to: string, url: string, appName: string): Email 
 	};
 }
 
-export function resendSender(apiKey: string, from: string): SendEmail {
+export function resendSender(apiKey: string, from: string, replyTo?: string): SendEmail {
 	const resend = new Resend(apiKey);
 	return async (email) => {
-		const { error } = await resend.emails.send({ from, ...email });
+		const { error } = await resend.emails.send({ from, ...(replyTo && { replyTo }), ...email });
 		if (error) throw new Error(`Email failed: ${error.message}`);
 	};
 }
@@ -106,9 +106,9 @@ export function consoleSender(log: (msg: string) => void = console.log): SendEma
 export function createSender(
 	apiKey: string | undefined,
 	from: string,
-	opts: { production?: boolean } = {}
+	opts: { production?: boolean; replyTo?: string } = {}
 ): SendEmail {
-	if (apiKey) return resendSender(apiKey, from);
+	if (apiKey) return resendSender(apiKey, from, opts.replyTo);
 	if (opts.production)
 		return async () => {
 			throw new Error('Email is not configured: set RESEND_API_KEY.');

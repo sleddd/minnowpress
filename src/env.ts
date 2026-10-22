@@ -41,6 +41,10 @@ export const variables = defineEnvVars({
 		description: 'From address for outgoing email.',
 		schema: (value) => value || 'MinnowPress <hello@minnowpress.com>'
 	},
+	EMAIL_REPLY_TO: {
+		description: 'Where replies to outgoing email go. Unset = replies go to EMAIL_FROM.',
+		schema: optional
+	},
 	CRON_SECRET: {
 		description: 'Vercel Cron sends this as a Bearer token to /api/cron/*.',
 		schema: optional

@@ -20,11 +20,11 @@ describe('PageMeta', () => {
 		expect(document.head.querySelector('meta[name="referrer"]')).toBeNull();
 	});
 
-	it('uses just the site name without a title and can disable the referrer', async () => {
-		await render(PageMeta, { siteName: 'MinnowPress', noReferrer: true });
+	it('uses just the site name without a title and keeps a private URL on the site', async () => {
+		await render(PageMeta, { siteName: 'MinnowPress', privateUrl: true });
 		expect(document.title).toBe('MinnowPress');
 		expect(document.head.querySelector('meta[name="referrer"]')?.getAttribute('content')).toBe(
-			'no-referrer'
+			'same-origin'
 		);
 	});
 

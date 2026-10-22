@@ -113,6 +113,7 @@ Business logic lives in `src/lib/server/` as plain functions that take the datab
    | `PUBLIC_ORIGIN`                                              | `https://minnowpress.com` (used in emails, feeds and passkeys) |
    | `PUBLIC_APP_NAME`                                            | `MinnowPress`                                                  |
    | `RESEND_API_KEY`, `EMAIL_FROM`                               | From Resend, e.g. `MinnowPress <hello@minnowpress.com>`        |
+   | `EMAIL_REPLY_TO`                                             | Optional: where replies to emails go                           |
    | `ADMIN_EMAILS`                                               | Your email address                                             |
    | `CRON_SECRET`                                                | A long random string                                           |
    | `BEDROCK_AWS_ACCESS_KEY_ID`, `BEDROCK_AWS_SECRET_ACCESS_KEY` | The IAM user's key (leave unset to turn suggestions off)       |

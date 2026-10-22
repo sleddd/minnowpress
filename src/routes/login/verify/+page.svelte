@@ -8,7 +8,7 @@
 	let { data }: PageProps = $props();
 </script>
 
-<PageMeta title="Sign in" siteName={PUBLIC_APP_NAME} noReferrer />
+<PageMeta title="Sign in" siteName={PUBLIC_APP_NAME} privateUrl />
 
 <FormLayout>
 	<VerifyLogin appName={PUBLIC_APP_NAME} token={data.token} email={data.email} next={data.next} />
