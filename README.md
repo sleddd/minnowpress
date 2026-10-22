@@ -2,9 +2,15 @@
 
 **Little stories, endless sequels.** · [minnowpress.com](https://minnowpress.com)
 
-MinnowPress is a home for very short fiction, written by people. Every story is 1,024 characters or less, about a hundred and fifty words, short enough to read before your tea cools. And no story has to stay alone: anyone can write a **prequel** or a **sequel** to anyone else's story, so a single small story can grow into a branching chain written by many hands.
+MinnowPress is a home for very short fiction, written by people NOT AI. Every story is 1,024 characters or less, about a hundred and fifty words, short enough to read before your tea cools. And no story has to stay alone: anyone can write a **prequel** or a **sequel** to anyone else's story, so a single small story can grow into a branching chain written by many hands.
 
 It carries on the idea behind [Ficlets](https://ficlets.com) (2006–2009) and [Ficly](https://ficly.com) (2009–2014), and brings Ficly's public archive back to life so those stories can be read, rated and continued again.
+
+<img width="1146" height="716" alt="Screenshot 2026-10-21 at 10 30 28 PM" src="https://github.com/user-attachments/assets/78811956-ca40-4225-93b0-fa8a7761572d" />
+<img width="1095" height="713" alt="Screenshot 2026-10-21 at 10 31 14 PM" src="https://github.com/user-attachments/assets/59419acd-37b4-44ac-9771-f83843e469cb" />
+<img width="1119" height="715" alt="Screenshot 2026-10-21 at 10 30 53 PM" src="https://github.com/user-attachments/assets/af758b48-0b24-4a3d-9d17-39025cc9aee1" />
+<img width="1130" height="713" alt="Screenshot 2026-10-21 at 10 30 40 PM" src="https://github.com/user-attachments/assets/68e1219e-58ed-4992-a62a-c4a7b4674aff" />
+<img width="732" height="711" alt="Screenshot 2026-10-21 at 10 32 29 PM" src="https://github.com/user-attachments/assets/6f6b0f72-40c9-447a-8890-0702d84a319f" />
 
 ## Written by people
 
