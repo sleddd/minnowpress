@@ -17,37 +17,6 @@ It carries on the idea behind [Ficlets](https://ficlets.com) (2006–2009) and [
 This is the one rule that shapes everything else:
 
 - **Every story, comment and bio is written by a person.** AI never writes, edits, autocompletes, suggests wording for, or comments on anyone's writing. Stories that are AI-generated are removed, and readers can report any story they suspect.
-- **The only thing AI does here is suggest writing challenges.** Admins review suggested prompts before they're used. If the challenge queue ever runs empty, the daily job starts a fresh AI-suggested prompt so there's always something to write to.
-- The rule is enforced in the code as well as the terms: only `src/lib/server/prompts/` may import an AI SDK, and the linter fails the build if anything else tries. The writing pages load no third-party scripts at all.
-
-## How it works
-
-### For readers
-
-- **Stories** in three lanes on the front page: _Popular_ (best-rated), _Active_ (chains growing right now) and _Recent_, plus tags to browse by.
-- **Chains.** Every story shows the prequel before it and the sequel after it, and you can open the whole chain as a tree.
-- **Fish ratings.** Rate stories from one to five fish. Ratings from the Ficly archive are kept, so old favourites start with their original scores.
-- **Comments, a reading list, and following** your favourite writers, with their new stories on your desk.
-- **Atom feeds** for the latest stories, any tag, any writer and any challenge.
-
-### For writers
-
-- **The editor** counts characters as you type (emoji and accented letters count as one), with a 60-character minimum and 1,024 maximum. Save as a draft or publish.
-- **Write a prequel or sequel** to any story, including the 32,000 stories from the Ficly archive.
-- **Edit or delete** your own stories at any time. Edited stories say when they were changed.
-- **Your desk** gathers site news, comments and continuations on your stories, stories from people you follow, and your drafts.
-- **Email notifications** (optional) when someone continues or comments on your story, plus a weekly digest.
-
-### Challenges
-
-- One challenge runs at a time, for **14 days**. When it ends, the next one in line starts.
-- Members can **suggest challenges**. AI can suggest them too. An admin approves each one before it joins the line.
-- **Past challenges still take stories**, including the 1,343 challenges from the Ficly archive.
-- Admins can close a challenge early, reopen one, change dates, or delete one.
-
-### Moderation
-
-Readers can report stories and comments: suspected AI-generated text, spam, abuse or something else. Moderators review reports in `/admin` and can remove anything that breaks the rules.
 
 ## The Ficly archive
 
@@ -173,7 +142,3 @@ Keep the Turso token, Vercel account, GitHub account and the email inbox behind 
 This summary is for convenience; [LICENSE.md](LICENSE.md) is what actually applies. For commercial use, ask first.
 
 **The stories** are licensed separately from the code. Stories published on MinnowPress are shared under [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/), and stories from the Ficly archive keep their original [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/) license.
-
-## More
-
-- [PLAN.md](PLAN.md): the original plan and what has been built since, phase by phase.
