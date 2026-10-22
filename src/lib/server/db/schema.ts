@@ -1,0 +1,301 @@
+import {
+	type AnySQLiteColumn,
+	index,
+	integer,
+	primaryKey,
+	real,
+	sqliteTable,
+	text,
+	uniqueIndex
+} from 'drizzle-orm/sqlite-core';
+
+const createdAt = () =>
+	integer('created_at', { mode: 'timestamp_ms' })
+		.notNull()
+		.$defaultFn(() => new Date());
+
+export const users = sqliteTable('users', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	email: text('email').notNull().unique(),
+	username: text('username').notNull().unique(),
+	displayName: text('display_name').notNull(),
+	bio: text('bio').notNull().default(''),
+	website: text('website'),
+	avatarUrl: text('avatar_url'),
+	showMature: integer('show_mature', { mode: 'boolean' }).notNull().default(false),
+	role: text('role', { enum: ['user', 'mod', 'admin'] })
+		.notNull()
+		.default('user'),
+	// Email preferences
+	notifyComments: integer('notify_comments', { mode: 'boolean' }).notNull().default(true),
+	notifyContinuations: integer('notify_continuations', { mode: 'boolean' }).notNull().default(true),
+	notifyDigest: integer('notify_digest', { mode: 'boolean' }).notNull().default(false),
+	// Color theme: light by default; auto follows the system; dark is always dark.
+	theme: text('theme', { enum: ['auto', 'light', 'dark'] })
+		.notNull()
+		.default('light'),
+	// The system account that owns imported archive stories; it never signs in or gets email.
+	isArchive: integer('is_archive', { mode: 'boolean' }).notNull().default(false),
+	createdAt: createdAt()
+});
+
+export const passkeys = sqliteTable(
+	'passkeys',
+	{
+		// WebAuthn credential id (base64url)
+		id: text('id').primaryKey(),
+		userId: integer('user_id')
+			.notNull()
+			.references(() => users.id, { onDelete: 'cascade' }),
+		publicKey: text('public_key').notNull(),
+		counter: integer('counter').notNull().default(0),
+		transports: text('transports', { mode: 'json' }).$type<string[]>(),
+		name: text('name').notNull(),
+		createdAt: createdAt(),
+		lastUsedAt: integer('last_used_at', { mode: 'timestamp_ms' })
+	},
+	(t) => [index('passkeys_user_idx').on(t.userId)]
+);
+
+export const sessions = sqliteTable('sessions', {
+	// sha256 of the session token; the raw token only ever lives in the cookie
+	id: text('id').primaryKey(),
+	userId: integer('user_id')
+		.notNull()
+		.references(() => users.id, { onDelete: 'cascade' }),
+	expiresAt: integer('expires_at', { mode: 'timestamp_ms' }).notNull(),
+	// For the "Where you're signed in" list in Settings
+	signedInAt: integer('signed_in_at', { mode: 'timestamp_ms' }).$defaultFn(() => new Date()),
+	lastUsedAt: integer('last_used_at', { mode: 'timestamp_ms' }),
+	userAgent: text('user_agent')
+});
+
+/** Recent sign-in link requests, for rate limiting by network address and email. Pruned hourly. */
+export const loginRequests = sqliteTable(
+	'login_requests',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		ip: text('ip').notNull(),
+		email: text('email').notNull(),
+		createdAt: createdAt()
+	},
+	(t) => [
+		index('login_requests_ip_idx').on(t.ip, t.createdAt),
+		index('login_requests_email_idx').on(t.email, t.createdAt)
+	]
+);
+
+export const loginTokens = sqliteTable('login_tokens', {
+	// sha256 of the magic-link token
+	tokenHash: text('token_hash').primaryKey(),
+	email: text('email').notNull(),
+	expiresAt: integer('expires_at', { mode: 'timestamp_ms' }).notNull()
+});
+
+export const challenges = sqliteTable(
+	'challenges',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		title: text('title').notNull(),
+		promptText: text('prompt_text').notNull(),
+		source: text('source', { enum: ['ai', 'human'] }).notNull(),
+		status: text('status', { enum: ['pending', 'approved', 'rejected'] })
+			.notNull()
+			.default('pending'),
+		createdBy: integer('created_by').references(() => users.id, { onDelete: 'set null' }),
+		approvedBy: integer('approved_by').references(() => users.id, { onDelete: 'set null' }),
+		startsAt: integer('starts_at', { mode: 'timestamp_ms' }),
+		endsAt: integer('ends_at', { mode: 'timestamp_ms' }),
+		featured: integer('featured', { mode: 'boolean' }).notNull().default(false),
+		// Set on challenges imported from the Ficly archive
+		archiveId: integer('archive_id'),
+		archiveUrl: text('archive_url'),
+		createdAt: createdAt()
+	},
+	(t) => [
+		index('challenges_status_starts_idx').on(t.status, t.startsAt),
+		uniqueIndex('challenges_archive_idx').on(t.archiveId)
+	]
+);
+
+export const stories = sqliteTable(
+	'stories',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		authorId: integer('author_id')
+			.notNull()
+			.references(() => users.id, { onDelete: 'cascade' }),
+		title: text('title').notNull(),
+		body: text('body').notNull(),
+		status: text('status', { enum: ['draft', 'published', 'removed'] })
+			.notNull()
+			.default('draft'),
+		isMature: integer('is_mature', { mode: 'boolean' }).notNull().default(false),
+		parentId: integer('parent_id').references((): AnySQLiteColumn => stories.id, {
+			onDelete: 'set null'
+		}),
+		relation: text('relation', { enum: ['sequel', 'prequel'] }),
+		// id of the root story of the connected tree; equals own id for roots
+		chainId: integer('chain_id'),
+		challengeId: integer('challenge_id').references(() => challenges.id, {
+			onDelete: 'set null'
+		}),
+		// Ratings (1–5 fish). Totals include the archive baseline imported from Ficly.
+		ratingsCount: integer('ratings_count').notNull().default(0),
+		ratingsTotal: integer('ratings_total').notNull().default(0),
+		archiveRatingsCount: integer('archive_ratings_count').notNull().default(0),
+		archiveRatingsTotal: integer('archive_ratings_total').notNull().default(0),
+		commentsCount: integer('comments_count').notNull().default(0),
+		activityScore: real('activity_score').notNull().default(0),
+		// Set on stories imported from the Ficly archive (CC BY-SA 3.0, credited to the original author)
+		archiveId: integer('archive_id'),
+		archiveUrl: text('archive_url'),
+		archiveAuthor: text('archive_author'),
+		archiveAuthorUrl: text('archive_author_url'),
+		createdAt: createdAt(),
+		publishedAt: integer('published_at', { mode: 'timestamp_ms' }),
+		// Set when the author changes a story after publishing it.
+		editedAt: integer('edited_at', { mode: 'timestamp_ms' })
+	},
+	(t) => [
+		uniqueIndex('stories_archive_idx').on(t.archiveId),
+		index('stories_status_published_idx').on(t.status, t.publishedAt),
+		index('stories_author_idx').on(t.authorId),
+		index('stories_parent_idx').on(t.parentId),
+		index('stories_chain_idx').on(t.chainId),
+		index('stories_activity_idx').on(t.activityScore),
+		index('stories_challenge_idx').on(t.challengeId)
+	]
+);
+
+export const comments = sqliteTable(
+	'comments',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		storyId: integer('story_id')
+			.notNull()
+			.references(() => stories.id, { onDelete: 'cascade' }),
+		authorId: integer('author_id')
+			.notNull()
+			.references(() => users.id, { onDelete: 'cascade' }),
+		body: text('body').notNull(),
+		createdAt: createdAt(),
+		deletedAt: integer('deleted_at', { mode: 'timestamp_ms' })
+	},
+	(t) => [index('comments_story_idx').on(t.storyId)]
+);
+
+export const ratings = sqliteTable(
+	'ratings',
+	{
+		userId: integer('user_id')
+			.notNull()
+			.references(() => users.id, { onDelete: 'cascade' }),
+		storyId: integer('story_id')
+			.notNull()
+			.references(() => stories.id, { onDelete: 'cascade' }),
+		/** 1–5 fish */
+		score: integer('score').notNull(),
+		createdAt: createdAt(),
+		updatedAt: integer('updated_at', { mode: 'timestamp_ms' })
+			.notNull()
+			.$defaultFn(() => new Date())
+	},
+	(t) => [primaryKey({ columns: [t.userId, t.storyId] }), index('ratings_story_idx').on(t.storyId)]
+);
+
+export const bookmarks = sqliteTable(
+	'bookmarks',
+	{
+		userId: integer('user_id')
+			.notNull()
+			.references(() => users.id, { onDelete: 'cascade' }),
+		storyId: integer('story_id')
+			.notNull()
+			.references(() => stories.id, { onDelete: 'cascade' }),
+		createdAt: createdAt()
+	},
+	(t) => [primaryKey({ columns: [t.userId, t.storyId] })]
+);
+
+export const follows = sqliteTable(
+	'follows',
+	{
+		followerId: integer('follower_id')
+			.notNull()
+			.references(() => users.id, { onDelete: 'cascade' }),
+		followeeId: integer('followee_id')
+			.notNull()
+			.references(() => users.id, { onDelete: 'cascade' }),
+		createdAt: createdAt()
+	},
+	(t) => [primaryKey({ columns: [t.followerId, t.followeeId] })]
+);
+
+export const tags = sqliteTable('tags', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	name: text('name').notNull().unique()
+});
+
+export const storyTags = sqliteTable(
+	'story_tags',
+	{
+		storyId: integer('story_id')
+			.notNull()
+			.references(() => stories.id, { onDelete: 'cascade' }),
+		tagId: integer('tag_id')
+			.notNull()
+			.references(() => tags.id, { onDelete: 'cascade' })
+	},
+	(t) => [primaryKey({ columns: [t.storyId, t.tagId] }), index('story_tags_tag_idx').on(t.tagId)]
+);
+
+export const reports = sqliteTable(
+	'reports',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		reporterId: integer('reporter_id')
+			.notNull()
+			.references(() => users.id, { onDelete: 'cascade' }),
+		targetType: text('target_type', { enum: ['story', 'comment'] }).notNull(),
+		targetId: integer('target_id').notNull(),
+		reason: text('reason', { enum: ['ai_generated', 'spam', 'abuse', 'other'] }).notNull(),
+		note: text('note').notNull().default(''),
+		status: text('status', { enum: ['open', 'resolved', 'dismissed'] })
+			.notNull()
+			.default('open'),
+		resolvedBy: integer('resolved_by').references(() => users.id, { onDelete: 'set null' }),
+		createdAt: createdAt(),
+		resolvedAt: integer('resolved_at', { mode: 'timestamp_ms' })
+	},
+	(t) => [index('reports_status_idx').on(t.status)]
+);
+
+export const blogPosts = sqliteTable(
+	'blog_posts',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		slug: text('slug').notNull().unique(),
+		title: text('title').notNull(),
+		/** Plain text; blank lines separate paragraphs. Never rendered as HTML. */
+		body: text('body').notNull(),
+		authorId: integer('author_id').references(() => users.id, { onDelete: 'set null' }),
+		status: text('status', { enum: ['draft', 'published'] })
+			.notNull()
+			.default('draft'),
+		publishedAt: integer('published_at', { mode: 'timestamp_ms' }),
+		createdAt: createdAt(),
+		updatedAt: integer('updated_at', { mode: 'timestamp_ms' })
+			.notNull()
+			.$defaultFn(() => new Date())
+	},
+	(t) => [index('blog_posts_status_published_idx').on(t.status, t.publishedAt)]
+);
+
+export type BlogPost = typeof blogPosts.$inferSelect;
+export type User = typeof users.$inferSelect;
+export type Story = typeof stories.$inferSelect;
+export type Challenge = typeof challenges.$inferSelect;
+export type Comment = typeof comments.$inferSelect;
+export type Report = typeof reports.$inferSelect;
+export type Passkey = typeof passkeys.$inferSelect;

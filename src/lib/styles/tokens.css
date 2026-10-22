@@ -1,0 +1,230 @@
+/*
+ * Design tokens. Components use these custom properties only: no raw colors,
+ * spacing, or font sizes (enforced by Stylelint).
+ *
+ * Palette: classic Ficly — sage frame, paper card, teal ribbon and ink.
+ */
+:root {
+	color-scheme: light dark;
+
+	/* Color — light */
+	--color-frame: #e8ece6;
+	--color-bg: #f9f9f6;
+	--color-surface: #ffffff;
+	--color-surface-sunken: #edf0eb;
+	--color-text: #2a3335;
+	--color-text-muted: #5b6769;
+	--color-border: #d7ddd5;
+	--color-border-strong: #b6c2bd;
+	--color-rule: #c9d6d3;
+	--color-accent: #0e7477;
+	--color-accent-hover: #0a5d60;
+	--color-accent-contrast: #ffffff;
+	--color-accent-soft: #dcecec;
+	--color-cta: #127a7c;
+	--color-cta-hover: #0e7477;
+	--color-nav: #0b7c80;
+	--color-nav-current: #2a3335;
+	--color-nav-text: #ffffff;
+	--color-stripe-a: #d4e0cf;
+	--color-stripe-b: #eaf0e6;
+	--color-display: #0f7f82;
+	--color-nav-underline: #b8dcdc;
+	--color-ink-button: #2a3335;
+	/* Placeholder avatars: background + silhouette pairs, picked per person */
+	--color-avatar-1-bg: #d7e4d3;
+	--color-avatar-1-fg: #8fae89;
+	--color-avatar-2-bg: #d3e6e5;
+	--color-avatar-2-fg: #6fa3a3;
+	--color-avatar-3-bg: #ece3d2;
+	--color-avatar-3-fg: #bea67c;
+	--color-avatar-4-bg: #ecdcd6;
+	--color-avatar-4-fg: #c08f80;
+	--color-avatar-5-bg: #dde2e8;
+	--color-avatar-5-fg: #8e9cad;
+	--color-avatar-6-bg: #e5e6d0;
+	--color-avatar-6-fg: #a3a671;
+	--color-danger: #a1261d;
+	--color-danger-soft: #fbe5e2;
+	--color-success: #2f6b3a;
+	--color-success-soft: #e3f1e5;
+	--color-warning: #8a6200;
+	--color-warning-soft: #fbf0d4;
+	--color-focus: #2b5fd9;
+
+	/* Typography */
+	--font-serif: 'Source Serif 4 Variable', 'Source Serif Pro', Charter, Georgia, serif;
+	--font-sans: var(--font-serif);
+	--font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+
+	--text-xs: 0.8125rem;
+	--text-sm: 0.9375rem;
+	--text-md: 1.0625rem;
+	--text-lg: 1.25rem;
+	--text-xl: 1.375rem;
+	--text-2xl: 1.875rem;
+	--text-3xl: 2.5rem;
+	--text-display: clamp(2.25rem, 4.5vw, 3.75rem);
+	--text-hero: clamp(2.5rem, 6vw, 4.5rem);
+	--tracking-label: 0.08em;
+	/* The story page: reading text and its title. */
+	--text-story: 1.0625rem;
+	--text-story-title: clamp(2rem, 3.5vw, 2.875rem);
+
+	--leading-tight: 1.15;
+	--leading-normal: 1.5;
+	--leading-prose: 1.7;
+	/* A blank line in a story: one line of the surrounding text. */
+	--space-paragraph: 1lh;
+
+	--weight-normal: 400;
+	--weight-medium: 500;
+	--weight-semibold: 600;
+	--weight-bold: 700;
+
+	--tracking-eyebrow: 0.12em;
+
+	/* Space */
+	--space-0: 0;
+	--space-1: 0.25rem;
+	--space-2: 0.5rem;
+	--space-3: 0.75rem;
+	--space-4: 1rem;
+	--space-5: 1.5rem;
+	--space-6: 2rem;
+	--space-7: 3rem;
+	--space-8: 4rem;
+	--space-9: 5rem;
+
+	/* Shape & depth */
+	--radius-sm: 3px;
+	--radius-md: 4px;
+	--radius-full: 999px;
+	--border-width: 1px;
+	--focus-ring: 0 0 0 3px color-mix(in srgb, var(--color-focus) 45%, transparent);
+	--shadow-sm: 0 1px 2px rgb(42 51 53 / 6%);
+	--shadow-page: 0 2px 24px rgb(42 51 53 / 8%);
+
+	/* Layout */
+	--measure: 40rem;
+	--page-width: 72rem;
+	--sidebar-width: 19rem;
+	--size-avatar-sm: 1.75rem;
+	--size-avatar-md: 2.75rem;
+	--size-avatar-lg: 4rem;
+	/* Author pictures (placeholder silhouettes for now): kept small. */
+	--size-face-sm: 1.25rem;
+	--size-face-md: 1.75rem;
+	--size-face-lg: 2.5rem;
+	/* The profile card. */
+	--size-face-xl: 5rem;
+	--size-thumb-sm: 3.5rem;
+	--size-thumb-md: 4.5rem;
+	--size-icon: 1.125rem;
+
+	--duration-fast: 120ms;
+}
+
+/* The reader picked Light: keep native controls light too. */
+:root[data-theme='light'] {
+	color-scheme: light;
+}
+
+/* Dark theme: follows the system unless the reader picked Light or Dark (data-theme on <html>). */
+@media (prefers-color-scheme: dark) {
+	:root:not([data-theme='light']) {
+		color-scheme: dark;
+		--color-frame: #121718;
+		--color-bg: #182022;
+		--color-surface: #1e2729;
+		--color-surface-sunken: #243033;
+		--color-text: #e6ece9;
+		--color-text-muted: #a3b2b0;
+		--color-border: #2f3c3f;
+		--color-border-strong: #45575a;
+		--color-rule: #3c5e5d;
+		--color-accent: #7cc2c3;
+		--color-accent-hover: #9ad3d3;
+		--color-accent-contrast: #102022;
+		--color-accent-soft: #223a3c;
+		--color-cta: #5fb0b1;
+		--color-cta-hover: #7cc2c3;
+		--color-nav: #2c6a6e;
+		--color-nav-current: #0f1517;
+		--color-nav-text: #f2f7f6;
+		--color-stripe-a: #2e3d38;
+		--color-stripe-b: #24302d;
+		--color-display: #7cc2c3;
+		--color-nav-underline: #7cc2c3;
+		--color-ink-button: #0f1517;
+		--color-avatar-1-bg: #2b3a2c;
+		--color-avatar-1-fg: #6f8f6a;
+		--color-avatar-2-bg: #213a3b;
+		--color-avatar-2-fg: #5c8f8f;
+		--color-avatar-3-bg: #3a3326;
+		--color-avatar-3-fg: #9a8560;
+		--color-avatar-4-bg: #3b2c28;
+		--color-avatar-4-fg: #a07466;
+		--color-avatar-5-bg: #2c3138;
+		--color-avatar-5-fg: #7b8898;
+		--color-avatar-6-bg: #34352a;
+		--color-avatar-6-fg: #8c8f5e;
+		--color-danger: #f08a80;
+		--color-danger-soft: #3e1d19;
+		--color-success: #86c892;
+		--color-success-soft: #1d3322;
+		--color-warning: #e6c069;
+		--color-warning-soft: #3a2f14;
+		--color-focus: #86a8ff;
+		--shadow-sm: 0 1px 2px rgb(0 0 0 / 40%);
+		--shadow-page: 0 2px 24px rgb(0 0 0 / 40%);
+	}
+}
+
+:root[data-theme='dark'] {
+	color-scheme: dark;
+	--color-frame: #121718;
+	--color-bg: #182022;
+	--color-surface: #1e2729;
+	--color-surface-sunken: #243033;
+	--color-text: #e6ece9;
+	--color-text-muted: #a3b2b0;
+	--color-border: #2f3c3f;
+	--color-border-strong: #45575a;
+	--color-rule: #3c5e5d;
+	--color-accent: #7cc2c3;
+	--color-accent-hover: #9ad3d3;
+	--color-accent-contrast: #102022;
+	--color-accent-soft: #223a3c;
+	--color-cta: #5fb0b1;
+	--color-cta-hover: #7cc2c3;
+	--color-nav: #2c6a6e;
+	--color-nav-current: #0f1517;
+	--color-nav-text: #f2f7f6;
+	--color-stripe-a: #2e3d38;
+	--color-stripe-b: #24302d;
+	--color-display: #7cc2c3;
+	--color-nav-underline: #7cc2c3;
+	--color-ink-button: #0f1517;
+	--color-avatar-1-bg: #2b3a2c;
+	--color-avatar-1-fg: #6f8f6a;
+	--color-avatar-2-bg: #213a3b;
+	--color-avatar-2-fg: #5c8f8f;
+	--color-avatar-3-bg: #3a3326;
+	--color-avatar-3-fg: #9a8560;
+	--color-avatar-4-bg: #3b2c28;
+	--color-avatar-4-fg: #a07466;
+	--color-avatar-5-bg: #2c3138;
+	--color-avatar-5-fg: #7b8898;
+	--color-avatar-6-bg: #34352a;
+	--color-avatar-6-fg: #8c8f5e;
+	--color-danger: #f08a80;
+	--color-danger-soft: #3e1d19;
+	--color-success: #86c892;
+	--color-success-soft: #1d3322;
+	--color-warning: #e6c069;
+	--color-warning-soft: #3a2f14;
+	--color-focus: #86a8ff;
+	--shadow-sm: 0 1px 2px rgb(0 0 0 / 40%);
+	--shadow-page: 0 2px 24px rgb(0 0 0 / 40%);
+}

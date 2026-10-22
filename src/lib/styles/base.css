@@ -1,0 +1,45 @@
+@import url('./tokens.css');
+
+*,
+*::before,
+*::after {
+	box-sizing: border-box;
+}
+
+body {
+	margin: 0;
+	background: var(--color-frame);
+	color: var(--color-text);
+	font-family: var(--font-serif);
+	font-size: var(--text-md);
+	font-optical-sizing: auto;
+	line-height: var(--leading-normal);
+	-webkit-font-smoothing: antialiased;
+}
+
+:where(h1, h2, h3, h4, p, ul, ol, figure, blockquote) {
+	margin: 0;
+}
+
+:where(ul, ol)[role='list'] {
+	list-style: none;
+	padding: 0;
+}
+
+img {
+	display: block;
+	max-width: 100%;
+}
+
+:focus-visible {
+	outline: none;
+	box-shadow: var(--focus-ring);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		transition-duration: 0s !important;
+	}
+}

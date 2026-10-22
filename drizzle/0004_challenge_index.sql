@@ -1,0 +1,1 @@
+CREATE INDEX `stories_challenge_idx` ON `stories` (`challenge_id`);

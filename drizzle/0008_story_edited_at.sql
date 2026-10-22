@@ -1,0 +1,1 @@
+ALTER TABLE `stories` ADD `edited_at` integer;

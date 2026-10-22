@@ -1,0 +1,55 @@
+import { describe, expect, it, vi } from 'vitest';
+
+const send = vi.fn();
+vi.mock('resend', () => ({
+	Resend: class {
+		emails = { send };
+	}
+}));
+
+const { consoleSender, createSender, magicLinkEmail, resendSender } = await import('./email');
+
+describe('magicLinkEmail', () => {
+	it('includes the link in text and escaped html', () => {
+		const email = magicLinkEmail('a@example.com', 'https://x.test/login/verify?token=a&b', 'Fic');
+		expect(email.subject).toBe('Your Fic sign-in link');
+		expect(email.text).toContain('https://x.test/login/verify?token=a&b');
+		expect(email.html).toContain('href="https://x.test/login/verify?token=a&amp;b"');
+	});
+
+	it('escapes the app name', () => {
+		expect(magicLinkEmail('a@b.co', 'u', '<b>').html).toContain('&lt;b&gt;');
+	});
+});
+
+describe('senders', () => {
+	const email = magicLinkEmail('a@example.com', 'https://x.test', 'Fic');
+
+	it('consoleSender logs the email', async () => {
+		const log = vi.fn();
+		await consoleSender(log)(email);
+		expect(log.mock.calls[0][0]).toContain('https://x.test');
+	});
+
+	it('resendSender sends with the from address and throws on error', async () => {
+		send.mockResolvedValueOnce({ data: { id: '1' }, error: null });
+		await resendSender('key', 'Fic <hi@x.test>')(email);
+		expect(send).toHaveBeenCalledWith(
+			expect.objectContaining({ from: 'Fic <hi@x.test>', to: 'a@example.com' })
+		);
+		send.mockResolvedValueOnce({ data: null, error: { message: 'bad' } });
+		await expect(resendSender('key', 'f')(email)).rejects.toThrow('Email failed: bad');
+	});
+
+	it('createSender picks Resend only when a key is set', async () => {
+		const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+		await createSender(undefined, 'f')(email);
+		expect(log).toHaveBeenCalled();
+		log.mockRestore();
+		send.mockResolvedValueOnce({ data: {}, error: null });
+		send.mockClear();
+		send.mockResolvedValueOnce({ data: {}, error: null });
+		await createSender('key', 'f')(email);
+		expect(send).toHaveBeenCalledTimes(1);
+	});
+});

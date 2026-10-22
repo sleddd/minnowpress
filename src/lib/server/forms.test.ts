@@ -1,0 +1,93 @@
+import { isActionFailure, isHttpError } from '@sveltejs/kit';
+import { describe, expect, it } from 'vitest';
+import { ForbiddenError, NotFoundError, ValidationError } from './errors';
+import { formBool, formDate, formInt, formString, paramInt, toActionFailure } from './forms';
+
+const fd = (entries: Record<string, string>) => {
+	const data = new FormData();
+	for (const [k, v] of Object.entries(entries)) data.set(k, v);
+	return data;
+};
+
+const caught = (fn: () => unknown) => {
+	try {
+		return fn();
+	} catch (e) {
+		return e;
+	}
+};
+
+describe('form helpers', () => {
+	it('formString returns strings and ignores files or missing keys', () => {
+		const data = fd({ a: 'x' });
+		data.set('f', new Blob(['y']));
+		expect(formString(data, 'a')).toBe('x');
+		expect(formString(data, 'f')).toBe('');
+		expect(formString(data, 'missing')).toBe('');
+	});
+
+	it('formInt accepts positive integers only', () => {
+		expect(formInt(fd({ n: '12' }), 'n')).toBe(12);
+		for (const bad of ['0', '-1', '1.5', 'abc', ''])
+			expect(formInt(fd({ n: bad }), 'n')).toBeNull();
+	});
+
+	it('formBool understands checkbox values', () => {
+		expect(formBool(fd({ b: 'on' }), 'b')).toBe(true);
+		expect(formBool(fd({ b: 'true' }), 'b')).toBe(true);
+		expect(formBool(fd({}), 'b')).toBe(false);
+	});
+
+	it('formDate parses date inputs as UTC midnight', () => {
+		expect(formDate(fd({ d: '2026-10-22' }), 'd')?.toISOString()).toBe('2026-10-22T00:00:00.000Z');
+		expect(formDate(fd({ d: '' }), 'd')).toBeNull();
+		expect(Number.isNaN(formDate(fd({ d: 'soon' }), 'd')!.getTime())).toBe(true);
+	});
+
+	it('paramInt 404s on bad ids', () => {
+		expect(paramInt('7')).toBe(7);
+		expect(
+			isHttpError(
+				caught(() => paramInt('x')),
+				404
+			)
+		).toBe(true);
+		expect(
+			isHttpError(
+				caught(() => paramInt(undefined)),
+				404
+			)
+		).toBe(true);
+	});
+});
+
+describe('toActionFailure', () => {
+	it('maps validation errors to a 400 failure with fields and extras', () => {
+		const result = toActionFailure(new ValidationError({ title: 'Required' }), {
+			values: { title: '' }
+		});
+		expect(isActionFailure(result)).toBe(true);
+		expect(result.status).toBe(400);
+		expect(result.data).toEqual({ errors: { title: 'Required' }, values: { title: '' } });
+	});
+
+	it('maps not found and forbidden to HTTP errors', () => {
+		expect(
+			isHttpError(
+				caught(() => toActionFailure(new NotFoundError())),
+				404
+			)
+		).toBe(true);
+		expect(
+			isHttpError(
+				caught(() => toActionFailure(new ForbiddenError())),
+				403
+			)
+		).toBe(true);
+	});
+
+	it('rethrows anything else', () => {
+		const boom = new Error('boom');
+		expect(caught(() => toActionFailure(boom))).toBe(boom);
+	});
+});
