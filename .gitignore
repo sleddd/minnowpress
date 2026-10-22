@@ -33,3 +33,6 @@ coverage
 
 # Local database backups
 *.bak
+
+# Ficly archive dump: download it (see README), don’t commit it
+ficly_export.sql.gz
