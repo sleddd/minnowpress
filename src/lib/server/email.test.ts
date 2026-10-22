@@ -57,6 +57,15 @@ describe('senders', () => {
 		await expect(resendSender('key', 'f')(email)).rejects.toThrow('Email failed: bad');
 	});
 
+	it('resendSender sets the reply-to address only when given', async () => {
+		send.mockClear();
+		send.mockResolvedValue({ data: { id: '1' }, error: null });
+		await createSender('key', 'f', { replyTo: 'help@x.test' })(email);
+		expect(send).toHaveBeenLastCalledWith(expect.objectContaining({ replyTo: 'help@x.test' }));
+		await resendSender('key', 'f')(email);
+		expect(send.mock.lastCall?.[0]).not.toHaveProperty('replyTo');
+	});
+
 	it('createSender picks Resend only when a key is set', async () => {
 		const log = vi.spyOn(console, 'log').mockImplementation(() => {});
 		await createSender(undefined, 'f')(email);
