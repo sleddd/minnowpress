@@ -43,3 +43,8 @@ img {
 		transition-duration: 0s !important;
 	}
 }
+
+/* SvelteKit's mount point in app.html: here, not inline, because the CSP blocks style attributes. */
+.app-root {
+	display: contents;
+}
