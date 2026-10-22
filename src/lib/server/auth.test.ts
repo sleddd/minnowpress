@@ -87,6 +87,16 @@ describe('login tokens', () => {
 		).toBe(true);
 	});
 
+	it('cannot be slipped under by a burst of parallel requests', async () => {
+		const now = new Date('2026-10-21T12:00:00Z');
+		const attacker = { email: 'victim@example.com', ip: '203.0.113.9' };
+		const results = await Promise.all(
+			Array.from({ length: 12 }, () => allowLoginRequest(db, attacker, now))
+		);
+		// Every request counts the others, so at most the limit get through, possibly none.
+		expect(results.filter(Boolean).length).toBeLessThanOrEqual(LOGIN_LIMITS.perAddressAndEmail);
+	});
+
 	it('caps requests per address and per email each hour', async () => {
 		const now = new Date('2026-10-21T12:00:00Z');
 		for (let i = 0; i < LOGIN_LIMITS.perAddress; i++)

@@ -60,7 +60,7 @@ describe('recentActivity after moderation', () => {
 		const other = await createStory(db, me.id, input());
 		await addComment(db, them.id, other.id, 'Lovely');
 		await continueStory(db, them.id, other.id, 'sequel', input());
-		await removeStory(db, other.id);
+		await removeStory(db, other.id, me.id);
 		expect(await recentActivity(db, me.id)).toEqual([]);
 	});
 });

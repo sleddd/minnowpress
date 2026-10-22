@@ -4,7 +4,7 @@ import { isModerator, requireModerator, requireUser } from '#lib/server/auth.ts'
 import { isBookmarked, toggleBookmark } from '#lib/server/bookmarks.ts';
 import { db } from '#lib/server/db/index.ts';
 import { formInt, formString, paramInt, toActionFailure } from '#lib/server/forms.ts';
-import { LIMIT_MESSAGE, underHourlyLimit } from '#lib/server/limits.ts';
+import { RateLimitError } from '#lib/server/errors.ts';
 import { fileReport, REPORT_REASONS, type ReportReason } from '#lib/server/moderation.ts';
 import { deliverSafely, notifyComment, notifyContinuation } from '#lib/server/notifications.ts';
 import { getUserRating, rateStory } from '#lib/server/ratings.ts';
@@ -79,13 +79,13 @@ export const actions: Actions = {
 		const user = requireUser(locals.user, url);
 		const body = formString(await request.formData(), 'body');
 		const id = await readable(params.id, user);
-		if (!(await underHourlyLimit(db, 'comment', user.id)))
-			return fail(429, { commentBody: body, errors: { body: LIMIT_MESSAGE } });
 		try {
 			const comment = await addComment(db, user.id, id, body);
 			await deliverSafely(() => notifyComment(db, notify, comment.id));
 			return { commented: true };
 		} catch (e) {
+			if (e instanceof RateLimitError)
+				return fail(429, { commentBody: body, errors: { body: e.message } });
 			return toActionFailure(e, { commentBody: body });
 		}
 	},
@@ -108,7 +108,6 @@ export const actions: Actions = {
 		const targetId = formInt(data, 'targetId');
 		const reason = formString(data, 'reason') as ReportReason;
 		if (!targetId || !REPORT_REASONS.includes(reason)) return fail(400);
-		if (!(await underHourlyLimit(db, 'report', user.id))) return fail(429);
 		try {
 			await fileReport(db, user.id, {
 				targetType,
@@ -143,8 +142,8 @@ export const actions: Actions = {
 	},
 
 	remove: async ({ params, locals }) => {
-		requireModerator(locals.user);
-		await removeStory(db, paramInt(params.id));
+		const mod = requireModerator(locals.user);
+		await removeStory(db, paramInt(params.id), mod.id);
 		redirect(303, '/');
 	}
 };

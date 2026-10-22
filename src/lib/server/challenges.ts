@@ -23,8 +23,8 @@ export interface ChallengeInput {
 
 export function validateChallenge(input: ChallengeInput) {
 	const errors: Record<string, string> = {};
-	const title = countGraphemes(input.title.trim());
-	const prompt = countGraphemes(input.promptText.trim());
+	const title = countGraphemes(input.title.trim(), CHALLENGE_TITLE_MAX);
+	const prompt = countGraphemes(input.promptText.trim(), CHALLENGE_PROMPT_MAX);
 	if (title === 0) errors.title = 'Give it a title.';
 	else if (title > CHALLENGE_TITLE_MAX)
 		errors.title = `Titles are ${CHALLENGE_TITLE_MAX} characters or less.`;

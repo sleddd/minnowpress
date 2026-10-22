@@ -69,7 +69,7 @@ describe('recomputeActivityScores', () => {
 			.set({ activityScore: 5, publishedAt: new Date(0) })
 			.where(eq(stories.id, old.id));
 		await db.update(stories).set({ activityScore: 5 }).where(eq(stories.id, gone.id));
-		await removeStory(db, gone.id);
+		await removeStory(db, gone.id, a.id);
 
 		expect(await recomputeActivityScores(db)).toBe(0);
 		expect(await score(old.id)).toBe(0);

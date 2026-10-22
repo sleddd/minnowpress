@@ -1,8 +1,10 @@
 import { eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { DB } from './db/client';
-import { challenges, stories } from './db/schema';
-import { ForbiddenError, NotFoundError, ValidationError } from './errors';
+import { challenges, moderationLog, stories, users } from './db/schema';
+import { ForbiddenError, NotFoundError, RateLimitError, ValidationError } from './errors';
+import { HOURLY_LIMITS } from './limits';
+import { listModerationLog } from './moderation-log';
 import {
 	archiveOf,
 	continueStory,
@@ -49,6 +51,14 @@ describe('createStory', () => {
 		expect(story.chainId).toBe(story.id);
 		const [row] = await db.select().from(stories).where(eq(stories.id, story.id));
 		expect(row.chainId).toBe(story.id);
+	});
+
+	it('refuses a flood of stories and leaves no trace of the refused one', async () => {
+		for (let i = 0; i < HOURLY_LIMITS.story; i++) await createStory(db, alice.id, input());
+		await expect(createStory(db, alice.id, input())).rejects.toThrow(RateLimitError);
+		expect(await countPublishedStories(db, alice.id)).toBe(HOURLY_LIMITS.story);
+		// Other members are unaffected.
+		await expect(createStory(db, bob.id, input())).resolves.toBeDefined();
 	});
 
 	it('saves a draft without a publish date', async () => {
@@ -142,7 +152,7 @@ describe('continueStory', () => {
 		);
 		await expect(continueStory(db, bob.id, 9999, 'sequel', input())).rejects.toThrow(NotFoundError);
 		const root = await createStory(db, alice.id, input());
-		await removeStory(db, root.id);
+		await removeStory(db, root.id, bob.id);
 		await expect(continueStory(db, bob.id, root.id, 'sequel', input())).rejects.toThrow(
 			NotFoundError
 		);
@@ -194,7 +204,7 @@ describe('drafts', () => {
 		await expect(updateStory(db, bob.id, draft.id, input())).rejects.toThrow(ForbiddenError);
 		await expect(updateStory(db, alice.id, 9999, input())).rejects.toThrow(NotFoundError);
 		const removed = await createStory(db, alice.id, input());
-		await removeStory(db, removed.id);
+		await removeStory(db, removed.id, bob.id);
 		await expect(editableStory(db, alice.id, removed.id)).rejects.toThrow(NotFoundError);
 		const archived = await createStory(db, alice.id, input());
 		await db.update(stories).set({ archiveId: 42 }).where(eq(stories.id, archived.id));
@@ -264,11 +274,27 @@ describe('getStory', () => {
 		expect(await getStory(db, draft.id, alice.id)).not.toBeNull();
 
 		const pub = await createStory(db, alice.id, input());
-		await removeStory(db, pub.id);
+		await removeStory(db, pub.id, bob.id);
 		expect(await getStory(db, pub.id, alice.id)).toBeNull();
-		await restoreStory(db, pub.id);
+		await restoreStory(db, pub.id, bob.id);
 		expect(await getStory(db, pub.id)).not.toBeNull();
 		expect(await getStory(db, 9999)).toBeNull();
+	});
+
+	it('logs removals and restorations once each, with the moderator', async () => {
+		const pub = await createStory(db, alice.id, input());
+		await removeStory(db, pub.id, bob.id);
+		await removeStory(db, pub.id, bob.id);
+		await restoreStory(db, pub.id, bob.id);
+		await restoreStory(db, pub.id, bob.id);
+		await removeStory(db, 9999, bob.id);
+		const { items } = await listModerationLog(db);
+		const mod = (await db.query.users.findFirst({ where: eq(users.id, bob.id) }))!.username;
+		expect(items.map((i) => [i.action, i.actor, i.targetId])).toEqual([
+			['restore_story', mod, pub.id],
+			['remove_story', mod, pub.id]
+		]);
+		expect(await db.select().from(moderationLog)).toHaveLength(2);
 	});
 
 	it('includes the challenge it answers', async () => {
@@ -316,7 +342,7 @@ describe('countPublishedStories', () => {
 		await createStory(db, alice.id, input());
 		await createStory(db, alice.id, input({ publish: false }));
 		const removed = await createStory(db, alice.id, input());
-		await removeStory(db, removed.id);
+		await removeStory(db, removed.id, bob.id);
 		await createStory(db, bob.id, input());
 		expect(await countPublishedStories(db, alice.id)).toBe(1);
 	});

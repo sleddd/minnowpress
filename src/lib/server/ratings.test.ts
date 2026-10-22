@@ -51,7 +51,7 @@ describe('rateStory', () => {
 		await expect(rateStory(db, reader.id, storyId, 0)).rejects.toThrow(ValidationError);
 		await expect(rateStory(db, author.id, storyId, 5)).rejects.toThrow(ForbiddenError);
 		await expect(rateStory(db, reader.id, 999, 5)).rejects.toThrow(NotFoundError);
-		await removeStory(db, storyId);
+		await removeStory(db, storyId, author.id);
 		await expect(rateStory(db, reader.id, storyId, 5)).rejects.toThrow(NotFoundError);
 	});
 

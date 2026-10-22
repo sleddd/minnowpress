@@ -20,3 +20,14 @@ export class ForbiddenError extends Error {
 		this.name = 'ForbiddenError';
 	}
 }
+
+export const RATE_LIMIT_MESSAGE =
+	'You’re posting faster than we allow. Try again in a little while.';
+
+/** The member did this too many times in too short a while. Routes answer with a 429. */
+export class RateLimitError extends Error {
+	constructor(what = RATE_LIMIT_MESSAGE) {
+		super(what);
+		this.name = 'RateLimitError';
+	}
+}

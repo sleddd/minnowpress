@@ -31,6 +31,13 @@ describe('countGraphemes', () => {
 	it('counts the empty string as zero', () => {
 		expect(countGraphemes('')).toBe(0);
 	});
+
+	it('stops counting just past a limit, so huge input is cheap to reject', () => {
+		expect(countGraphemes('abcdef', 3)).toBe(4);
+		expect(countGraphemes('abc', 3)).toBe(3);
+		expect(countGraphemes('ab', 3)).toBe(2);
+		expect(countGraphemes('👍'.repeat(10), 2)).toBe(3);
+	});
 });
 
 describe('normalizeBody', () => {
@@ -46,6 +53,10 @@ describe('validateStoryBody', () => {
 
 	it('rejects one over the limit', () => {
 		expect(validateStoryBody('a'.repeat(STORY_MAX + 1))).toMatch(/1025/);
+	});
+
+	it('rejects a huge body without counting all of it', () => {
+		expect(validateStoryBody('a'.repeat(2_000_000))).toMatch(/1025 or more/);
 	});
 
 	it('accepts 1024 emoji even though they are many more code units', () => {

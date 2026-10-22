@@ -7,6 +7,7 @@
 
 	const tabs = $derived([
 		{ href: '/admin/reports', label: 'Reports', current: page.url.pathname === '/admin/reports' },
+		{ href: '/admin/log', label: 'Log', current: page.url.pathname === '/admin/log' },
 		...(data.isAdmin
 			? [
 					{

@@ -42,7 +42,7 @@ describe('bookmarksFeed', () => {
 		await new Promise((r) => setTimeout(r, 5));
 		await toggleBookmark(db, reader.id, a.id);
 		await toggleBookmark(db, reader.id, c.id);
-		await removeStory(db, c.id);
+		await removeStory(db, c.id, author.id);
 		const feed = await bookmarksFeed(db, reader.id);
 		expect(feed.items.map((s) => s.id)).toEqual([a.id, b.id]);
 		expect((await bookmarksFeed(db, author.id)).items).toEqual([]);

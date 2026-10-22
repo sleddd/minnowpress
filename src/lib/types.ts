@@ -192,3 +192,23 @@ export interface SessionView {
 	expiresAt: Date;
 	current: boolean;
 }
+
+/** One line of the moderation log. */
+export interface ModerationLogView {
+	id: number;
+	action:
+		| 'remove_story'
+		| 'restore_story'
+		| 'delete_comment'
+		| 'suspend_user'
+		| 'unsuspend_user'
+		| 'dismiss_report';
+	targetType: 'story' | 'comment' | 'user';
+	targetId: number;
+	reportId: number | null;
+	createdAt: Date;
+	/** The moderator's username, or null if their account is gone. */
+	actor: string | null;
+	/** What was acted on, with a link when it still exists. */
+	target: { label: string; href: string | null };
+}

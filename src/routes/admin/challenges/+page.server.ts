@@ -10,13 +10,13 @@ import {
 } from '#lib/server/challenges.ts';
 import { ValidationError } from '#lib/server/errors.ts';
 import { db } from '#lib/server/db/index.ts';
-import { formDate, formInt, toActionFailure } from '#lib/server/forms.ts';
+import { formDate, formInt, pageParam, toActionFailure } from '#lib/server/forms.ts';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
 	requireAdmin(locals.user);
 	await ensureCurrentChallenge(db);
-	return listChallenges(db, { page: Number(url.searchParams.get('page')) || 1 });
+	return listChallenges(db, { page: pageParam(url.searchParams.get('page')) });
 };
 
 export const actions: Actions = {

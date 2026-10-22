@@ -1,8 +1,10 @@
 /**
  * The ONLY place in the app that talks to an AI model.
  *
- * It generates short writing *prompts* for admins to review. It never writes, edits,
- * completes, or comments on stories. ESLint forbids importing @anthropic-ai/* anywhere else.
+ * It generates short writing *prompts*. Admins review them on /admin/prompts; the daily job
+ * (ensureCurrentChallenge) also starts one unreviewed when no approved challenge is waiting.
+ * It never writes, edits, completes, or comments on stories. ESLint forbids importing
+ * @anthropic-ai/* anywhere else.
  *
  * Calls Claude on Amazon Bedrock through the standard InvokeModel API (IAM: bedrock:InvokeModel).
  */

@@ -2,7 +2,7 @@ import { error } from '@sveltejs/kit';
 import { isModerator, requireModerator, requireUser } from '#lib/server/auth.ts';
 import { db } from '#lib/server/db/index.ts';
 import { authorFeed } from '#lib/server/feeds.ts';
-import { toActionFailure } from '#lib/server/forms.ts';
+import { pageParam, toActionFailure } from '#lib/server/forms.ts';
 import { suspendUser, unsuspendUser } from '#lib/server/moderation.ts';
 import { follow, followCounts, isFollowing, unfollow } from '#lib/server/social.ts';
 import { countPublishedStories, getUserStories } from '#lib/server/stories.ts';
@@ -25,7 +25,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 	const [feed, counts, stories, following, own] = await Promise.all([
 		authorFeed(db, user.id, {
 			viewer: feedViewer,
-			page: Number(url.searchParams.get('page')) || 1
+			page: pageParam(url.searchParams.get('page'))
 		}),
 		followCounts(db, user.id),
 		countPublishedStories(db, user.id),
@@ -87,17 +87,17 @@ export const actions: Actions = {
 		await unfollow(db, viewer.id, user.id);
 	},
 	suspend: async ({ params, locals }) => {
-		requireModerator(locals.user);
+		const mod = requireModerator(locals.user);
 		const user = await profileUser(params.username);
 		try {
-			await suspendUser(db, user.id);
+			await suspendUser(db, mod.id, user.id);
 		} catch (e) {
 			return toActionFailure(e);
 		}
 	},
 	unsuspend: async ({ params, locals }) => {
-		requireModerator(locals.user);
+		const mod = requireModerator(locals.user);
 		const user = await profileUser(params.username);
-		await unsuspendUser(db, user.id);
+		await unsuspendUser(db, mod.id, user.id);
 	}
 };

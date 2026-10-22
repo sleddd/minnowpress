@@ -1,4 +1,4 @@
-import { and, eq, ne } from 'drizzle-orm';
+import { and, eq, gt, ne, or } from 'drizzle-orm';
 import type { Theme } from '#lib/theme.ts';
 import { countGraphemes, RESERVED_USERNAMES, validateUsername } from '#lib/text.ts';
 import type { DB } from './db/client';
@@ -7,13 +7,41 @@ import { ForbiddenError, NotFoundError, ValidationError } from './errors';
 
 export const DISPLAY_NAME_MAX = 50;
 export const BIO_MAX = 500;
+/** The longest address mail systems accept (RFC 5321). */
+export const EMAIL_MAX = 254;
+/**
+ * How long a username someone gave up stays off the market, so links and mentions sent out
+ * under the old name don't start pointing at a stranger the next day.
+ */
+export const USERNAME_HOLD_DAYS = 30;
+const DAY = 24 * 60 * 60 * 1000;
 
 export function normalizeEmail(email: string): string {
 	return email.trim().toLowerCase();
 }
 
 export function isValidEmail(email: string): boolean {
-	return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+	return email.length <= EMAIL_MAX && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+/** True when someone else holds the name, or gave it up less than USERNAME_HOLD_DAYS ago. */
+export async function usernameTaken(
+	db: DB,
+	name: string,
+	opts: { except?: number; now?: Date } = {}
+): Promise<boolean> {
+	const now = opts.now ?? new Date();
+	const held = and(
+		eq(users.formerUsername, name),
+		gt(users.usernameChangedAt, new Date(now.getTime() - USERNAME_HOLD_DAYS * DAY))
+	);
+	const row = await db.query.users.findFirst({
+		where: and(
+			or(eq(users.username, name), held),
+			opts.except === undefined ? undefined : ne(users.id, opts.except)
+		)
+	});
+	return Boolean(row);
 }
 
 /** A username derived from the email's local part, made unique with a number if needed. */
@@ -28,8 +56,7 @@ export async function suggestUsername(db: DB, email: string): Promise<string> {
 	if (base.length < 3) base = `writer${base}`;
 	let candidate = base;
 	const taken = async (name: string) =>
-		RESERVED_USERNAMES.has(name) ||
-		Boolean(await db.query.users.findFirst({ where: eq(users.username, name) }));
+		RESERVED_USERNAMES.has(name) || (await usernameTaken(db, name));
 	for (let n = 2; await taken(candidate); n++) {
 		candidate = `${base}${n}`;
 	}
@@ -91,7 +118,12 @@ export function normalizeWebsite(website: string): string | null | undefined {
 	}
 }
 
-export async function updateProfile(db: DB, userId: number, input: ProfileInput): Promise<User> {
+export async function updateProfile(
+	db: DB,
+	userId: number,
+	input: ProfileInput,
+	now = new Date()
+): Promise<User> {
 	const errors: Record<string, string> = {};
 	const username = input.username.trim().toLowerCase();
 	const usernameError = validateUsername(username);
@@ -100,22 +132,20 @@ export async function updateProfile(db: DB, userId: number, input: ProfileInput)
 	// Someone who already has a reserved name keeps it; nobody new can take one.
 	else if (RESERVED_USERNAMES.has(username) && current?.username !== username)
 		errors.username = 'That username is reserved.';
-	else {
-		const taken = await db.query.users.findFirst({
-			where: and(eq(users.username, username), ne(users.id, userId))
-		});
-		if (taken) errors.username = 'That username is taken.';
-	}
-	const displayLength = countGraphemes(input.displayName.trim());
+	else if (await usernameTaken(db, username, { except: userId, now }))
+		errors.username = 'That username is taken.';
+	const displayLength = countGraphemes(input.displayName.trim(), DISPLAY_NAME_MAX);
 	if (displayLength === 0) errors.displayName = 'Enter a display name.';
 	else if (displayLength > DISPLAY_NAME_MAX)
 		errors.displayName = `Up to ${DISPLAY_NAME_MAX} characters.`;
-	if (countGraphemes(input.bio.trim()) > BIO_MAX)
+	if (countGraphemes(input.bio.trim(), BIO_MAX) > BIO_MAX)
 		errors.bio = `Bios are ${BIO_MAX} characters or less.`;
 	const website = normalizeWebsite(input.website);
 	if (website === undefined) errors.website = 'Enter a valid web address.';
 	if (Object.keys(errors).length) throw new ValidationError(errors);
 
+	// A rename holds the old name for a while (see USERNAME_HOLD_DAYS).
+	const renamed = current !== null && current.username !== username;
 	const [user] = await db
 		.update(users)
 		.set({
@@ -123,7 +153,8 @@ export async function updateProfile(db: DB, userId: number, input: ProfileInput)
 			displayName: input.displayName.trim(),
 			bio: input.bio.trim(),
 			website,
-			showMature: input.showMature
+			showMature: input.showMature,
+			...(renamed ? { formerUsername: current.username, usernameChangedAt: now } : {})
 		})
 		.where(eq(users.id, userId))
 		.returning();

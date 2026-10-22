@@ -20,13 +20,19 @@ export function takeChallenge(cookies: Pick<Cookies, 'get' | 'delete'>): string 
 	return challenge;
 }
 
-/** Parses the JSON body of a passkey verify request. */
+/**
+ * Parses the JSON body of a passkey verify request. The response must be an object with a
+ * string credential id: anything else is a 400, not a crash further down.
+ */
 export async function readJson(request: Request): Promise<Record<string, unknown>> {
 	const body = await request.json().catch(() => null);
+	const response = (body as { response?: unknown } | null)?.response;
 	if (
 		!body ||
 		typeof body !== 'object' ||
-		typeof (body as { response?: unknown }).response !== 'object'
+		!response ||
+		typeof response !== 'object' ||
+		typeof (response as { id?: unknown }).id !== 'string'
 	)
 		error(400, 'Invalid passkey response.');
 	return body as Record<string, unknown>;

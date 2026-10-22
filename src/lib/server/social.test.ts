@@ -2,7 +2,9 @@ import { eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { DB } from './db/client';
 import { stories } from './db/schema';
-import { ForbiddenError, NotFoundError, ValidationError } from './errors';
+import { ForbiddenError, NotFoundError, RateLimitError, ValidationError } from './errors';
+import { HOURLY_LIMITS } from './limits';
+import { listModerationLog } from './moderation-log';
 import {
 	addComment,
 	deleteComment,
@@ -71,9 +73,22 @@ describe('comments', () => {
 		const b = await addComment(db, bob.id, storyId, 'two');
 		await expect(deleteComment(db, alice.id, a.id)).rejects.toThrow(ForbiddenError);
 		await deleteComment(db, bob.id, a.id);
-		await deleteComment(db, alice.id, b.id, { asModerator: true });
+		await deleteComment(db, alice.id, b.id, { asModerator: true, reportId: null });
 		expect(await listComments(db, storyId)).toEqual([]);
 		expect((await counts()).comments).toBe(0);
 		await expect(deleteComment(db, bob.id, a.id)).rejects.toThrow(NotFoundError);
+		// Only the moderator's deletion of someone else's comment is logged.
+		const { items } = await listModerationLog(db);
+		expect(items.map((i) => [i.action, i.targetId, i.reportId])).toEqual([
+			['delete_comment', b.id, null]
+		]);
+	});
+
+	it('refuses a flood of comments and leaves no trace of the refused one', async () => {
+		for (let i = 0; i < HOURLY_LIMITS.comment; i++) await addComment(db, bob.id, storyId, 'hi');
+		await expect(addComment(db, bob.id, storyId, 'one more')).rejects.toThrow(RateLimitError);
+		expect(await listComments(db, storyId)).toHaveLength(HOURLY_LIMITS.comment);
+		expect((await counts()).comments).toBe(HOURLY_LIMITS.comment);
+		await expect(addComment(db, alice.id, storyId, 'still fine')).resolves.toBeDefined();
 	});
 });

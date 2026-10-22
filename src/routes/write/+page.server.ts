@@ -1,4 +1,4 @@
-import { error, fail, redirect } from '@sveltejs/kit';
+import { error, redirect } from '@sveltejs/kit';
 import { parseTags } from '#lib/text.ts';
 import type { Relation } from '#lib/types.ts';
 import { notify } from '#lib/server/app/index.ts';
@@ -7,8 +7,7 @@ import { deliverSafely, notifyContinuation } from '#lib/server/notifications.ts'
 import { ensureCurrentChallenge, getChallenge, openChallenges } from '#lib/server/challenges.ts';
 import { db } from '#lib/server/db/index.ts';
 import { storyCounts } from '#lib/server/desk.ts';
-import { formBool, formInt, formString, toActionFailure } from '#lib/server/forms.ts';
-import { LIMIT_MESSAGE, underHourlyLimit } from '#lib/server/limits.ts';
+import { formBool, formInt, formString, queryInt, toActionFailure } from '#lib/server/forms.ts';
 import {
 	continueStory,
 	createStory,
@@ -30,7 +29,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	await ensureCurrentChallenge(db);
 	const challenges = (await openChallenges(db)).map((c) => ({ id: c.id, title: c.title }));
 	// Past challenges take stories too: offer the one you came from (or the draft's) in the picker.
-	const wanted = Number(q.get('challenge')) || null;
+	const wanted = queryInt(q.get('challenge'));
 	const addChallenge = async (id: number | null) => {
 		if (!id || challenges.some((c) => c.id === id)) return;
 		const c = await getChallenge(db, id);
@@ -46,7 +45,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		challengeId: q.get('challenge') ?? ''
 	};
 
-	const editId = Number(q.get('edit')) || null;
+	const editId = queryInt(q.get('edit'));
 	if (editId) {
 		const draft = await getStory(db, editId, user.id);
 		if (!draft || draft.authorId !== user.id) error(404, 'Story not found');
@@ -69,13 +68,13 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		};
 	}
 
-	const sequelTo = Number(q.get('sequel_to')) || null;
-	const prequelTo = Number(q.get('prequel_to')) || null;
+	const sequelTo = queryInt(q.get('sequel_to'));
+	const prequelTo = queryInt(q.get('prequel_to'));
 	const parentId = sequelTo ?? prequelTo;
 	const continuing = parentId
 		? { relation: (sequelTo ? 'sequel' : 'prequel') as Relation, parent: await parentFor(parentId) }
 		: null;
-	const challengeId = Number(values.challengeId) || null;
+	const challengeId = queryInt(values.challengeId);
 
 	return {
 		values,
@@ -110,8 +109,6 @@ export const actions: Actions = {
 		const editId = formInt(data, 'editId');
 		const parentId = formInt(data, 'parentId');
 		const relation = formString(data, 'relation') === 'prequel' ? 'prequel' : 'sequel';
-		if (!editId && !(await underHourlyLimit(db, 'story', user.id)))
-			return fail(429, { values, errors: { form: LIMIT_MESSAGE } });
 
 		let storyId: number;
 		try {

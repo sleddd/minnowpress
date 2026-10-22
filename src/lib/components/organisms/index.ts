@@ -10,6 +10,7 @@ export { default as ProfileHeader } from './ProfileHeader/ProfileHeader.svelte';
 export { default as PromptComposer } from './PromptComposer/PromptComposer.svelte';
 export { default as PromptReviewList } from './PromptReviewList/PromptReviewList.svelte';
 export { default as ReportQueue } from './ReportQueue/ReportQueue.svelte';
+export { default as ModerationLog } from './ModerationLog/ModerationLog.svelte';
 export { default as SiteFooter } from './SiteFooter/SiteFooter.svelte';
 export { default as SiteHeader } from './SiteHeader/SiteHeader.svelte';
 export { default as StoryEditor } from './StoryEditor/StoryEditor.svelte';

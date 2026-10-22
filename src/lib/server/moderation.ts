@@ -3,6 +3,8 @@ import { countGraphemes } from '#lib/text.ts';
 import type { DB } from './db/client';
 import { comments, reports, sessions, stories, users, type Report } from './db/schema';
 import { ForbiddenError, NotFoundError, ValidationError } from './errors';
+import { assertUnderHourlyLimit } from './limits';
+import { logModeration } from './moderation-log';
 import { deleteComment } from './social';
 import { removeStory } from './stories';
 
@@ -31,7 +33,7 @@ export async function fileReport(db: DB, reporterId: number, input: ReportInput)
 	if (!REPORT_REASONS.includes(input.reason))
 		throw new ValidationError({ reason: 'Pick a reason.' });
 	const note = (input.note ?? '').trim();
-	if (countGraphemes(note) > REPORT_NOTE_MAX)
+	if (countGraphemes(note, REPORT_NOTE_MAX) > REPORT_NOTE_MAX)
 		throw new ValidationError({ note: `Notes are ${REPORT_NOTE_MAX} characters or less.` });
 	if (!(await targetExists(db, input.targetType, input.targetId))) throw new NotFoundError();
 
@@ -55,6 +57,12 @@ export async function fileReport(db: DB, reporterId: number, input: ReportInput)
 			note
 		})
 		.returning();
+	try {
+		await assertUnderHourlyLimit(db, 'report', reporterId);
+	} catch (e) {
+		await db.delete(reports).where(eq(reports.id, row.id));
+		throw e;
+	}
 	return row;
 }
 
@@ -101,8 +109,9 @@ export async function listOpenReports(db: DB) {
 export type OpenReport = Awaited<ReturnType<typeof listOpenReports>>[number];
 
 /**
- * Closes a report. "remove" takes the story or comment down; "dismiss" leaves it.
- * Every other open report on the same target is closed the same way.
+ * Closes a report. "remove" takes the story or comment down; "dismiss" leaves it. Either way
+ * the moderator's decision is logged. Every other open report on the same target is closed the
+ * same way.
  */
 export async function resolveReport(
 	db: DB,
@@ -114,12 +123,23 @@ export async function resolveReport(
 	if (!report || report.status !== 'open') throw new NotFoundError('Open report not found');
 
 	if (action === 'remove') {
-		if (report.targetType === 'story') await removeStory(db, report.targetId);
+		if (report.targetType === 'story')
+			await removeStory(db, report.targetId, moderatorId, { reportId });
 		else
-			await deleteComment(db, moderatorId, report.targetId, { asModerator: true }).catch((e) => {
+			await deleteComment(db, moderatorId, report.targetId, {
+				asModerator: true,
+				reportId
+			}).catch((e) => {
 				if (!(e instanceof NotFoundError)) throw e;
 			});
-	}
+	} else
+		await logModeration(db, {
+			actorId: moderatorId,
+			action: 'dismiss_report',
+			targetType: report.targetType,
+			targetId: report.targetId,
+			reportId
+		});
 
 	await db
 		.update(reports)
@@ -140,21 +160,39 @@ export async function resolveReport(
 /**
  * Suspends a member: every session ends and they can't sign back in. Their stories stay up;
  * take those down through reports. Only ordinary members can be suspended, never staff.
+ * Logged with the moderator who did it.
  */
-export async function suspendUser(db: DB, userId: number, now = new Date()): Promise<void> {
+export async function suspendUser(
+	db: DB,
+	moderatorId: number,
+	userId: number,
+	now = new Date()
+): Promise<void> {
 	const target = await db.query.users.findFirst({ where: eq(users.id, userId) });
 	if (!target || target.isArchive) throw new NotFoundError('User not found');
 	if (target.role !== 'user') throw new ForbiddenError('Moderators and admins can’t be suspended.');
 	await db.update(users).set({ suspendedAt: now }).where(eq(users.id, userId));
 	await db.delete(sessions).where(eq(sessions.userId, userId));
+	await logModeration(db, {
+		actorId: moderatorId,
+		action: 'suspend_user',
+		targetType: 'user',
+		targetId: userId
+	});
 }
 
-/** Lets a suspended member sign in again. */
-export async function unsuspendUser(db: DB, userId: number): Promise<void> {
+/** Lets a suspended member sign in again. Logged with the moderator who did it. */
+export async function unsuspendUser(db: DB, moderatorId: number, userId: number): Promise<void> {
 	const [row] = await db
 		.update(users)
 		.set({ suspendedAt: null })
 		.where(eq(users.id, userId))
 		.returning({ id: users.id });
 	if (!row) throw new NotFoundError('User not found');
+	await logModeration(db, {
+		actorId: moderatorId,
+		action: 'unsuspend_user',
+		targetType: 'user',
+		targetId: userId
+	});
 }

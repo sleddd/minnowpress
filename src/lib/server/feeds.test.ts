@@ -59,7 +59,9 @@ describe('latestFeed', () => {
 	});
 
 	it('paginates', async () => {
-		for (let i = 0; i < PAGE_SIZE + 2; i++) await createStory(db, alice.id, input());
+		// Two authors, so neither hits the hourly story limit.
+		for (let i = 0; i < PAGE_SIZE + 2; i++)
+			await createStory(db, i % 2 ? alice.id : bob.id, input());
 		const first = await latestFeed(db);
 		const second = await latestFeed(db, { page: 2 });
 		expect(first.items).toHaveLength(PAGE_SIZE);

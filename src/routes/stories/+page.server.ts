@@ -1,4 +1,5 @@
 import { db } from '#lib/server/db/index.ts';
+import { pageParam } from '#lib/server/forms.ts';
 import { activeFeed, followingFeed, latestFeed, popularFeed } from '#lib/server/feeds.ts';
 import type { PageServerLoad } from './$types';
 
@@ -9,7 +10,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	const requested = url.searchParams.get('tab') as Tab;
 	const tab: Tab =
 		TABS.includes(requested) && (requested !== 'following' || locals.user) ? requested : 'latest';
-	const page = Number(url.searchParams.get('page')) || 1;
+	const page = pageParam(url.searchParams.get('page'));
 	const opts = { viewer: locals.user, page };
 
 	const feed =

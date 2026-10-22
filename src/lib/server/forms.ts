@@ -1,5 +1,5 @@
 import { error, fail } from '@sveltejs/kit';
-import { ForbiddenError, NotFoundError, ValidationError } from './errors';
+import { ForbiddenError, NotFoundError, RateLimitError, ValidationError } from './errors';
 
 export function formString(data: FormData, key: string): string {
 	const value = data.get(key);
@@ -9,7 +9,7 @@ export function formString(data: FormData, key: string): string {
 /** A positive integer, or null when missing or malformed. */
 export function formInt(data: FormData, key: string): number | null {
 	const value = Number(formString(data, key));
-	return Number.isInteger(value) && value > 0 ? value : null;
+	return Number.isSafeInteger(value) && value > 0 ? value : null;
 }
 
 export function formBool(data: FormData, key: string): boolean {
@@ -26,17 +26,41 @@ export function formDate(data: FormData, key: string): Date | null {
 
 export function paramInt(value: string | undefined): number {
 	const n = Number(value);
-	if (!Number.isInteger(n) || n <= 0) error(404, 'Not found');
+	if (!Number.isSafeInteger(n) || n <= 0) error(404, 'Not found');
 	return n;
 }
 
 /**
+ * A positive integer from a query string, or null. `Infinity` and `1e999` are numbers too, but
+ * the database driver refuses to bind them, so only safe integers get through.
+ */
+export function queryInt(value: string | null | undefined): number | null {
+	if (!value?.trim()) return null;
+	const n = Number(value);
+	return Number.isSafeInteger(n) && n > 0 ? n : null;
+}
+
+/** The deepest page anyone can ask for; a larger offset only costs database reads. */
+export const PAGE_MAX = 10_000;
+
+/** The `?page=` number, from 1 to PAGE_MAX. Anything else is page 1. */
+export function pageParam(value: string | null | undefined): number {
+	return Math.min(queryInt(value) ?? 1, PAGE_MAX);
+}
+
+/**
  * Turns domain errors into HTTP responses: validation → a 400 form failure carrying field errors,
- * not found → 404, forbidden → 403. Anything else is rethrown.
+ * rate limit → a 429 failure with the message as a form error, not found → 404, forbidden → 403.
+ * Anything else is rethrown.
  */
 export function toActionFailure<T extends object = Record<never, never>>(e: unknown, extra?: T) {
 	if (e instanceof ValidationError)
 		return fail(400, { ...(extra as T), errors: e.fields as Record<string, string | undefined> });
+	if (e instanceof RateLimitError)
+		return fail(429, {
+			...(extra as T),
+			errors: { form: e.message } as Record<string, string | undefined>
+		});
 	if (e instanceof NotFoundError) error(404, e.message);
 	if (e instanceof ForbiddenError) error(403, e.message);
 	throw e;

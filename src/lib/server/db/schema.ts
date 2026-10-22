@@ -14,32 +14,41 @@ const createdAt = () =>
 		.notNull()
 		.$defaultFn(() => new Date());
 
-export const users = sqliteTable('users', {
-	id: integer('id').primaryKey({ autoIncrement: true }),
-	email: text('email').notNull().unique(),
-	username: text('username').notNull().unique(),
-	displayName: text('display_name').notNull(),
-	bio: text('bio').notNull().default(''),
-	website: text('website'),
-	avatarUrl: text('avatar_url'),
-	showMature: integer('show_mature', { mode: 'boolean' }).notNull().default(false),
-	role: text('role', { enum: ['user', 'mod', 'admin'] })
-		.notNull()
-		.default('user'),
-	// Email preferences
-	notifyComments: integer('notify_comments', { mode: 'boolean' }).notNull().default(true),
-	notifyContinuations: integer('notify_continuations', { mode: 'boolean' }).notNull().default(true),
-	notifyDigest: integer('notify_digest', { mode: 'boolean' }).notNull().default(false),
-	// Color theme: light by default; auto follows the system; dark is always dark.
-	theme: text('theme', { enum: ['auto', 'light', 'dark'] })
-		.notNull()
-		.default('light'),
-	// The system account that owns imported archive stories; it never signs in or gets email.
-	isArchive: integer('is_archive', { mode: 'boolean' }).notNull().default(false),
-	// Set by a moderator: the member is signed out everywhere and can't sign back in.
-	suspendedAt: integer('suspended_at', { mode: 'timestamp_ms' }),
-	createdAt: createdAt()
-});
+export const users = sqliteTable(
+	'users',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		email: text('email').notNull().unique(),
+		username: text('username').notNull().unique(),
+		// The name before the last rename, held for a while so nobody else can take it at once.
+		formerUsername: text('former_username'),
+		usernameChangedAt: integer('username_changed_at', { mode: 'timestamp_ms' }),
+		displayName: text('display_name').notNull(),
+		bio: text('bio').notNull().default(''),
+		website: text('website'),
+		avatarUrl: text('avatar_url'),
+		showMature: integer('show_mature', { mode: 'boolean' }).notNull().default(false),
+		role: text('role', { enum: ['user', 'mod', 'admin'] })
+			.notNull()
+			.default('user'),
+		// Email preferences
+		notifyComments: integer('notify_comments', { mode: 'boolean' }).notNull().default(true),
+		notifyContinuations: integer('notify_continuations', { mode: 'boolean' })
+			.notNull()
+			.default(true),
+		notifyDigest: integer('notify_digest', { mode: 'boolean' }).notNull().default(false),
+		// Color theme: light by default; auto follows the system; dark is always dark.
+		theme: text('theme', { enum: ['auto', 'light', 'dark'] })
+			.notNull()
+			.default('light'),
+		// The system account that owns imported archive stories; it never signs in or gets email.
+		isArchive: integer('is_archive', { mode: 'boolean' }).notNull().default(false),
+		// Set by a moderator: the member is signed out everywhere and can't sign back in.
+		suspendedAt: integer('suspended_at', { mode: 'timestamp_ms' }),
+		createdAt: createdAt()
+	},
+	(t) => [index('users_former_username_idx').on(t.formerUsername)]
+);
 
 export const passkeys = sqliteTable(
 	'passkeys',
@@ -85,6 +94,17 @@ export const loginRequests = sqliteTable(
 		index('login_requests_ip_idx').on(t.ip, t.createdAt),
 		index('login_requests_email_idx').on(t.email, t.createdAt)
 	]
+);
+
+/** Recent searches by network address, for rate limiting. Rows older than the window are pruned. */
+export const searchRequests = sqliteTable(
+	'search_requests',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		ip: text('ip').notNull(),
+		createdAt: createdAt()
+	},
+	(t) => [index('search_requests_ip_idx').on(t.ip, t.createdAt)]
 );
 
 export const loginTokens = sqliteTable('login_tokens', {
@@ -273,6 +293,31 @@ export const reports = sqliteTable(
 	(t) => [index('reports_status_idx').on(t.status)]
 );
 
+export const MODERATION_ACTIONS = [
+	'remove_story',
+	'restore_story',
+	'delete_comment',
+	'suspend_user',
+	'unsuspend_user',
+	'dismiss_report'
+] as const;
+
+/** Who did what, as a moderator. Rows are never deleted. */
+export const moderationLog = sqliteTable(
+	'moderation_log',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		actorId: integer('actor_id').references(() => users.id, { onDelete: 'set null' }),
+		action: text('action', { enum: MODERATION_ACTIONS }).notNull(),
+		targetType: text('target_type', { enum: ['story', 'comment', 'user'] }).notNull(),
+		targetId: integer('target_id').notNull(),
+		// The report that led to the action, if any
+		reportId: integer('report_id').references(() => reports.id, { onDelete: 'set null' }),
+		createdAt: createdAt()
+	},
+	(t) => [index('moderation_log_created_idx').on(t.createdAt)]
+);
+
 export const blogPosts = sqliteTable(
 	'blog_posts',
 	{
@@ -301,3 +346,4 @@ export type Challenge = typeof challenges.$inferSelect;
 export type Comment = typeof comments.$inferSelect;
 export type Report = typeof reports.$inferSelect;
 export type Passkey = typeof passkeys.$inferSelect;
+export type ModerationLogEntry = typeof moderationLog.$inferSelect;
