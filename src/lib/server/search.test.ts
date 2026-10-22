@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { DB } from './db/client';
-import { allowSearch, normalizeQuery, SEARCH_LIMITS, searchAll } from './search';
+import { sql } from 'drizzle-orm';
+import { allowSearch, normalizeQuery, SEARCH_LIMITS, searchAll, searchKey } from './search';
 import { createStory } from './stories';
 import { PAD, createTestDb, makeUser } from './testing/db';
 
@@ -66,5 +67,30 @@ describe('allowSearch', () => {
 		);
 		// Every search counts the others, so at most the limit get through, possibly none.
 		expect(results.filter(Boolean).length).toBeLessThanOrEqual(SEARCH_LIMITS.perAddress);
+	});
+});
+
+describe('allowSearch when the throttle itself fails', () => {
+	it('lets the search through and logs, rather than breaking search', async () => {
+		const db = await createTestDb();
+		await db.run(sql`drop table search_requests`);
+		const logged: unknown[] = [];
+		expect(await allowSearch(db, '203.0.113.9', new Date(), (m, e) => logged.push(m, e))).toBe(
+			true
+		);
+		expect(logged[0]).toMatch(/throttle failed/);
+		expect(logged[1]).toBeInstanceOf(Error);
+	});
+});
+
+describe('searchKey', () => {
+	it('uses the client address, or "unknown" when the host has none', () => {
+		expect(searchKey(() => '203.0.113.9')).toBe('203.0.113.9');
+		expect(searchKey(() => '')).toBe('unknown');
+		expect(
+			searchKey(() => {
+				throw new Error('no address');
+			})
+		).toBe('unknown');
 	});
 });

@@ -7,11 +7,7 @@
 		placeholder?: string;
 	}
 
-	let {
-		value = '',
-		id = 'site-search',
-		placeholder = 'Search stories, authors, tags'
-	}: Props = $props();
+	let { value = '', id = 'site-search', placeholder = 'Search…' }: Props = $props();
 </script>
 
 <form class="search" role="search" method="GET" action="/search">
