@@ -1,7 +1,7 @@
-import { and, count, desc, eq, isNotNull, notInArray, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, notInArray, sql } from 'drizzle-orm';
 import { archiveAuthorPath, ficlyAuthorUrl } from '#lib/archive.ts';
 import type { DB } from './db/client';
-import { follows, stories, users } from './db/schema';
+import { archiveAuthors, follows, stories, users } from './db/schema';
 import { likePattern } from './feeds';
 
 export const AUTHORS_PAGE_SIZE = 30;
@@ -61,6 +61,22 @@ export async function listWriters(
 	};
 }
 
+/**
+ * Rebuilds the archive_authors summary from the stories: one row per Ficly author with their
+ * published story count and years. The import runs it, and the nightly job keeps it current
+ * after moderation. One pass over the archive, instead of one per visitor.
+ */
+export async function refreshArchiveAuthors(db: DB): Promise<void> {
+	await db.delete(archiveAuthors);
+	await db.run(sql`
+		insert into ${archiveAuthors} (url, name, stories, first_published_at, last_published_at)
+		select ${stories.archiveAuthorUrl}, coalesce(min(${stories.archiveAuthor}), 'Unknown'),
+			count(*), min(${stories.publishedAt}), max(${stories.publishedAt})
+		from ${stories}
+		where ${stories.archiveAuthorUrl} is not null and ${stories.status} = 'published'
+		group by ${stories.archiveAuthorUrl}`);
+}
+
 /** Authors from the Ficly archive, most prolific first. */
 export async function listArchiveAuthors(
 	db: DB,
@@ -68,22 +84,22 @@ export async function listArchiveAuthors(
 ): Promise<{ items: AuthorEntry[]; hasMore: boolean }> {
 	const size = opts.pageSize ?? AUTHORS_PAGE_SIZE;
 	const page = Math.max(1, opts.page ?? 1);
-	const conditions = [isNotNull(stories.archiveAuthorUrl), eq(stories.status, 'published')];
-	if (opts.query)
-		conditions.push(sql`${stories.archiveAuthor} like ${likePattern(opts.query)} escape '\\'`);
 	const rows = await db
-		.select({ name: stories.archiveAuthor, url: stories.archiveAuthorUrl, stories: storyCount })
-		.from(stories)
-		.where(and(...conditions))
-		.groupBy(stories.archiveAuthorUrl)
-		.orderBy(desc(storyCount), stories.archiveAuthor)
+		.select({ name: archiveAuthors.name, url: archiveAuthors.url, stories: archiveAuthors.stories })
+		.from(archiveAuthors)
+		.where(
+			opts.query
+				? sql`${archiveAuthors.name} like ${likePattern(opts.query)} escape '\\'`
+				: undefined
+		)
+		.orderBy(desc(archiveAuthors.stories), asc(archiveAuthors.name))
 		.limit(size + 1)
 		.offset((page - 1) * size);
 	return {
 		items: rows.slice(0, size).flatMap((r) => {
 			const href = archiveAuthorPath(r.url);
 			return href
-				? [{ name: r.name ?? 'Unknown', href, stories: r.stories, avatarUrl: null, archive: true }]
+				? [{ name: r.name, href, stories: r.stories, avatarUrl: null, archive: true }]
 				: [];
 		}),
 		hasMore: rows.length > size
@@ -92,23 +108,15 @@ export async function listArchiveAuthors(
 
 export async function getArchiveAuthor(db: DB, slug: string) {
 	const url = ficlyAuthorUrl(slug.toLowerCase());
-	const [row] = await db
-		.select({
-			name: stories.archiveAuthor,
-			stories: storyCount,
-			first: sql<number | null>`min(${stories.publishedAt})`,
-			last: sql<number | null>`max(${stories.publishedAt})`
-		})
-		.from(stories)
-		.where(and(eq(stories.archiveAuthorUrl, url), eq(stories.status, 'published')));
+	const row = await db.query.archiveAuthors.findFirst({ where: eq(archiveAuthors.url, url) });
 	if (!row || row.stories === 0) return null;
-	const year = (ms: number | null) => (ms === null ? null : new Date(Number(ms)).getUTCFullYear());
+	const year = (d: Date | null) => d?.getUTCFullYear() ?? null;
 	return {
-		name: row.name ?? 'Unknown',
+		name: row.name,
 		url,
 		stories: row.stories,
-		firstYear: year(row.first),
-		lastYear: year(row.last)
+		firstYear: year(row.firstPublishedAt),
+		lastYear: year(row.lastPublishedAt)
 	};
 }
 

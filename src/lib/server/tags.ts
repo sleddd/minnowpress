@@ -1,6 +1,6 @@
-import { and, count, desc, eq, sql } from 'drizzle-orm';
+import { and, asc, desc, gt, inArray, sql } from 'drizzle-orm';
 import type { DB } from './db/client';
-import { stories, storyTags, tags } from './db/schema';
+import { tags } from './db/schema';
 import { likePattern } from './feeds';
 
 export const TAGS_PAGE_SIZE = 120;
@@ -10,40 +10,66 @@ export interface TagCount {
 	count: number;
 }
 
-const storyCount = count(stories.id);
-
-async function tagCounts(
-	db: DB,
-	opts: { limit: number; offset?: number; query?: string; includeMature?: boolean }
-): Promise<TagCount[]> {
-	const conditions = [eq(stories.status, 'published')];
-	if (!opts.includeMature) conditions.push(eq(stories.isMature, false));
-	if (opts.query) conditions.push(sql`${tags.name} like ${likePattern(opts.query)} escape '\\'`);
-	return db
-		.select({ name: tags.name, count: storyCount })
-		.from(tags)
-		.innerJoin(storyTags, eq(storyTags.tagId, tags.id))
-		.innerJoin(stories, eq(stories.id, storyTags.storyId))
-		.where(and(...conditions))
-		.groupBy(tags.id)
-		.orderBy(desc(storyCount), tags.name)
-		.limit(opts.limit)
-		.offset(opts.offset ?? 0);
+/**
+ * Zeroes the counts of the tags in `scope`, then sets them from one grouped pass over their
+ * story_tags rows. One pass, not one scan per tag: a per-tag subquery made SQLite walk every
+ * story for every tag.
+ */
+async function recount(db: DB, tagIds: number[] | undefined) {
+	const ids =
+		tagIds &&
+		sql.join(
+			tagIds.map((id) => sql`${id}`),
+			sql`, `
+		);
+	await db
+		.update(tags)
+		.set({ publishedCount: 0, generalCount: 0 })
+		.where(ids ? inArray(tags.id, tagIds) : undefined);
+	await db.run(sql`
+		update tags set published_count = c.published, general_count = c.general
+		from (
+			select st.tag_id as tag_id, count(*) as published,
+				sum(case when s.is_mature = 0 then 1 else 0 end) as general
+			from story_tags st join stories s on s.id = st.story_id
+			where s.status = 'published' ${ids ? sql`and st.tag_id in (${ids})` : sql``}
+			group by st.tag_id
+		) as c
+		where c.tag_id = tags.id`);
 }
 
-/** The most-used tags on published stories. */
+/** Recounts the stories behind these tags. Called whenever a story's tags or status change. */
+export async function syncTagCounts(db: DB, tagIds: number[]): Promise<void> {
+	if (tagIds.length === 0) return;
+	await recount(db, tagIds);
+}
+
+/** Recounts every tag. The nightly job runs this as a safety net; the import runs it once. */
+export async function refreshAllTagCounts(db: DB): Promise<void> {
+	await recount(db, undefined);
+}
+
+/** The most-used tags on published, non-mature stories. */
 export function popularTags(db: DB, limit = 6): Promise<TagCount[]> {
-	return tagCounts(db, { limit });
+	return db
+		.select({ name: tags.name, count: tags.generalCount })
+		.from(tags)
+		.where(gt(tags.generalCount, 0))
+		.orderBy(desc(tags.generalCount), asc(tags.name))
+		.limit(limit);
 }
 
-/** All tags in use, most-used first, a page at a time. */
+/** All tags in use (mature stories included), most-used first, a page at a time. */
 export async function tagIndex(db: DB, opts: { page?: number; query?: string } = {}) {
 	const page = Math.max(1, opts.page ?? 1);
-	const rows = await tagCounts(db, {
-		limit: TAGS_PAGE_SIZE + 1,
-		offset: (page - 1) * TAGS_PAGE_SIZE,
-		query: opts.query,
-		includeMature: true
-	});
+	const conditions = [gt(tags.publishedCount, 0)];
+	if (opts.query) conditions.push(sql`${tags.name} like ${likePattern(opts.query)} escape '\\'`);
+	const rows = await db
+		.select({ name: tags.name, count: tags.publishedCount })
+		.from(tags)
+		.where(and(...conditions))
+		.orderBy(desc(tags.publishedCount), asc(tags.name))
+		.limit(TAGS_PAGE_SIZE + 1)
+		.offset((page - 1) * TAGS_PAGE_SIZE);
 	return { items: rows.slice(0, TAGS_PAGE_SIZE), page, hasMore: rows.length > TAGS_PAGE_SIZE };
 }

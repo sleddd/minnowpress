@@ -1,3 +1,4 @@
+import { sql } from 'drizzle-orm';
 import {
 	type AnySQLiteColumn,
 	index,
@@ -169,6 +170,12 @@ export const stories = sqliteTable(
 		archiveRatingsTotal: integer('archive_ratings_total').notNull().default(0),
 		commentsCount: integer('comments_count').notNull().default(0),
 		activityScore: real('activity_score').notNull().default(0),
+		// Bayesian average rating (prior: 5 ratings of 3.5), kept by SQLite itself and indexed so
+		// the popular feed never scans the table. Zero until someone rates.
+		popularity: real('popularity').generatedAlwaysAs(
+			sql`case when ratings_count > 0 then (ratings_total + 17.5) * 1.0 / (ratings_count + 5) else 0 end`,
+			{ mode: 'virtual' }
+		),
 		// Set on stories imported from the Ficly archive (CC BY-SA 3.0, credited to the original author)
 		archiveId: integer('archive_id'),
 		archiveUrl: text('archive_url'),
@@ -186,8 +193,26 @@ export const stories = sqliteTable(
 		index('stories_parent_idx').on(t.parentId),
 		index('stories_chain_idx').on(t.chainId),
 		index('stories_activity_idx').on(t.activityScore),
-		index('stories_challenge_idx').on(t.challengeId)
+		index('stories_challenge_idx').on(t.challengeId),
+		index('stories_popularity_idx').on(t.status, t.popularity),
+		index('stories_archive_author_idx').on(t.archiveAuthorUrl, t.status, t.publishedAt)
 	]
+);
+
+/**
+ * One row per Ficly author, summarised from their stories so the authors directory never scans
+ * the archive. Rebuilt by the import and the nightly job.
+ */
+export const archiveAuthors = sqliteTable(
+	'archive_authors',
+	{
+		url: text('url').primaryKey(),
+		name: text('name').notNull(),
+		stories: integer('stories').notNull(),
+		firstPublishedAt: integer('first_published_at', { mode: 'timestamp_ms' }),
+		lastPublishedAt: integer('last_published_at', { mode: 'timestamp_ms' })
+	},
+	(t) => [index('archive_authors_stories_idx').on(t.stories)]
 );
 
 export const comments = sqliteTable(
@@ -254,10 +279,21 @@ export const follows = sqliteTable(
 	(t) => [primaryKey({ columns: [t.followerId, t.followeeId] })]
 );
 
-export const tags = sqliteTable('tags', {
-	id: integer('id').primaryKey({ autoIncrement: true }),
-	name: text('name').notNull().unique()
-});
+export const tags = sqliteTable(
+	'tags',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		name: text('name').notNull().unique(),
+		// Published stories carrying the tag, and those of them that aren't mature. Kept by
+		// syncTagCounts whenever a story's tags or status change, so tag lists never scan.
+		publishedCount: integer('published_count').notNull().default(0),
+		generalCount: integer('general_count').notNull().default(0)
+	},
+	(t) => [
+		index('tags_published_count_idx').on(t.publishedCount),
+		index('tags_general_count_idx').on(t.generalCount)
+	]
+);
 
 export const storyTags = sqliteTable(
 	'story_tags',
@@ -347,3 +383,4 @@ export type Comment = typeof comments.$inferSelect;
 export type Report = typeof reports.$inferSelect;
 export type Passkey = typeof passkeys.$inferSelect;
 export type ModerationLogEntry = typeof moderationLog.$inferSelect;
+export type ArchiveAuthor = typeof archiveAuthors.$inferSelect;

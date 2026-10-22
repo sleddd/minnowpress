@@ -1,10 +1,13 @@
 import { createHash, timingSafeEqual } from 'node:crypto';
 import { json } from '@sveltejs/kit';
+import { sql } from 'drizzle-orm';
 import { recomputeActivityScores } from './activity';
+import { refreshArchiveAuthors } from './authors';
 import { ensureCurrentChallenge } from './challenges';
 import type { DB } from './db/client';
 import { sendWeeklyDigests, type NotifyContext } from './notifications';
 import { ficlyExamples, generatePrompts, pickSeed, type PromptClient } from './prompts/generate';
+import { refreshAllTagCounts } from './tags';
 
 /** Vercel Cron sends `Authorization: Bearer $CRON_SECRET`. No secret configured means no access. */
 export function isAuthorizedCron(request: Request, secret: string | undefined): boolean {
@@ -41,8 +44,16 @@ export async function runPromptCron(db: DB, client: PromptClient | null, now = n
 	return json({ ok: true, action, challengeId: challenge?.id ?? null });
 }
 
+/**
+ * Daily: rescores activity, rebuilds the summaries the busy pages read from (tag counts,
+ * archive authors) so any drift from moderation is gone by morning, and refreshes the planner
+ * statistics SQLite needs to pick the tag and full-text indexes over a scan of every story.
+ */
 export async function runActivityCron(db: DB, now = new Date()) {
 	const scored = await recomputeActivityScores(db, now);
+	await refreshAllTagCounts(db);
+	await refreshArchiveAuthors(db);
+	await db.run(sql`analyze`);
 	return json({ ok: true, scored });
 }
 

@@ -1,7 +1,16 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { DB } from './db/client';
-import { createStory, removeStory } from './stories';
-import { popularTags, tagIndex, TAGS_PAGE_SIZE } from './tags';
+import { eq } from 'drizzle-orm';
+import { tags } from './db/schema';
+import {
+	createStory,
+	deleteStory,
+	publishStory,
+	removeStory,
+	restoreStory,
+	updateStory
+} from './stories';
+import { popularTags, refreshAllTagCounts, tagIndex, TAGS_PAGE_SIZE } from './tags';
 import { PAD, createTestDb, makeUser } from './testing/db';
 
 let db: DB;
@@ -40,5 +49,41 @@ describe('tagIndex', () => {
 		expect((await tagIndex(db, { query: 'hor' })).items).toEqual([{ name: 'horror', count: 1 }]);
 		expect((await tagIndex(db, { page: 0 })).page).toBe(1);
 		expect(TAGS_PAGE_SIZE).toBeGreaterThan(50);
+	});
+});
+
+describe('tag counts', () => {
+	const counts = async (name: string) => {
+		const row = await db.query.tags.findFirst({ where: eq(tags.name, name) });
+		return row ? [row.publishedCount, row.generalCount] : null;
+	};
+
+	it('follow publishing, editing, removing, restoring and deleting', async () => {
+		const draft = await story(['sea'], { publish: false });
+		expect(await counts('sea')).toEqual([0, 0]);
+		await publishStory(db, author.id, draft.id);
+		expect(await counts('sea')).toEqual([1, 1]);
+		await updateStory(db, author.id, draft.id, {
+			title: 'T',
+			body: 'B' + PAD,
+			tags: ['ocean'],
+			isMature: true,
+			publish: true
+		});
+		expect(await counts('sea')).toEqual([0, 0]);
+		expect(await counts('ocean')).toEqual([1, 0]);
+		await removeStory(db, draft.id, author.id);
+		expect(await counts('ocean')).toEqual([0, 0]);
+		await restoreStory(db, draft.id, author.id);
+		expect(await counts('ocean')).toEqual([1, 0]);
+		await deleteStory(db, author.id, draft.id);
+		expect(await counts('ocean')).toEqual([0, 0]);
+	});
+
+	it('can be rebuilt from scratch', async () => {
+		await story(['sea']);
+		await db.update(tags).set({ publishedCount: 99, generalCount: 99 });
+		await refreshAllTagCounts(db);
+		expect(await counts('sea')).toEqual([1, 1]);
 	});
 });

@@ -9,8 +9,10 @@
 import { count, eq, isNotNull, sql } from 'drizzle-orm';
 import type { BatchItem } from 'drizzle-orm/batch';
 import { normalizeBody, parseTags, TAG_MAX_COUNT } from '#lib/text.ts';
+import { refreshArchiveAuthors } from '../authors';
 import type { DB } from '../db/client';
 import { challenges, ratings, stories, storyTags, tags, users, type User } from '../db/schema';
+import { refreshAllTagCounts } from '../tags';
 import { readRows, type SqlRow } from './sqldump';
 
 export const FICLY_ORIGIN = 'https://ficly.com';
@@ -343,6 +345,11 @@ export async function importFicly(
 		1
 	);
 	log(`tags: ${allTags.length}`);
+
+	// The summaries the directory pages read from.
+	await refreshAllTagCounts(db);
+	await refreshArchiveAuthors(db);
+	log('summaries refreshed');
 
 	return {
 		stories: storyIds.size - storiesBefore,

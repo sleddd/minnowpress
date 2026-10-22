@@ -4,6 +4,7 @@ import {
 	authorsToFollow,
 	getArchiveAuthor,
 	listArchiveAuthors,
+	refreshArchiveAuthors,
 	listFollowing,
 	listWriters
 } from './authors';
@@ -79,6 +80,10 @@ describe('archive authors', () => {
 		await archiveStory('Kevin Lawver', 'kevin-lawver');
 		await archiveStory('Kevin Lawver', 'kevin-lawver');
 		await archiveStory('Henjo', 'henjo');
+		// Nothing is listed until the summary is built (the import and the nightly job do this).
+		expect((await listArchiveAuthors(db)).items).toEqual([]);
+		expect(await getArchiveAuthor(db, 'kevin-lawver')).toBeNull();
+		await refreshArchiveAuthors(db);
 		const { items } = await listArchiveAuthors(db);
 		expect(items).toEqual([
 			{
@@ -107,6 +112,7 @@ describe('archive authors', () => {
 describe('authorsToFollow', () => {
 	it('suggests members the viewer does not follow, topped up with archive authors', async () => {
 		await archiveStory('Kevin', 'kevin');
+		await refreshArchiveAuthors(db);
 		const viewer = await makeUser(db, { displayName: 'Viewer' });
 		const a = await makeUser(db, { displayName: 'Alice', username: 'alice' });
 		const b = await makeUser(db, { displayName: 'Bob', username: 'bob' });

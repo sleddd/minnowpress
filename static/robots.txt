@@ -1,3 +1,12 @@
-# allow crawling everything by default
+# Stories, authors, tags and challenges are for everyone. Search and account pages are not
+# worth crawling: each search is real database work.
 User-agent: *
-Disallow:
+Disallow: /search
+Disallow: /login
+Disallow: /logout
+Disallow: /settings
+Disallow: /desk
+Disallow: /reading-list
+Disallow: /write
+Disallow: /admin
+Disallow: /passkeys
