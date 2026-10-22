@@ -197,6 +197,14 @@ describe('safeNext', () => {
 		expect(safeNext('/\\evil.com')).toBe('/');
 		expect(safeNext(null)).toBe('/');
 	});
+
+	it('rejects paths a browser would turn into another origin', () => {
+		// The URL parser strips tabs and newlines, so each of these is //evil.com to a browser.
+		expect(safeNext('/\t/evil.com')).toBe('/');
+		expect(safeNext('/\n/evil.com')).toBe('/');
+		expect(safeNext('/\r/evil.com')).toBe('/');
+		expect(safeNext('/x/\\evil')).toBe('/');
+	});
 });
 
 describe('guards', () => {

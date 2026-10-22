@@ -186,11 +186,15 @@ export function sessionCookieOptions(expiresAt: Date, secure: boolean) {
 	return { path: '/', httpOnly: true, sameSite: 'lax' as const, secure, expires: expiresAt };
 }
 
-/** Only allows same-site relative paths, so ?next= cannot redirect off-site. */
+/**
+ * Only allows same-site relative paths, so ?next= cannot redirect off-site. Browsers drop tabs
+ * and newlines from URLs and read "\\" as "/", so "/\t/evil.com" would land on evil.com: any
+ * control character or backslash makes the path unsafe.
+ */
 export function safeNext(next: string | null | undefined): string {
-	return next && next.startsWith('/') && !next.startsWith('//') && !next.startsWith('/\\')
-		? next
-		: '/';
+	// eslint-disable-next-line no-control-regex -- matching control characters is the point
+	const unsafe = /[\u0000-\u001F\u007F\\]/;
+	return next && next.startsWith('/') && !next.startsWith('//') && !unsafe.test(next) ? next : '/';
 }
 
 export function requireUser(user: User | null, url: URL): User {
