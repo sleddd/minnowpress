@@ -70,7 +70,7 @@ export const sessions = sqliteTable('sessions', {
 	userAgent: text('user_agent')
 });
 
-/** Recent sign-in link requests, for rate limiting by network address and email. Pruned hourly. */
+/** Recent sign-in link requests, for rate limiting by network address and email. Rows older than an hour are pruned. */
 export const loginRequests = sqliteTable(
 	'login_requests',
 	{
