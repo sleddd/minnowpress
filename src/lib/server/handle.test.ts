@@ -3,10 +3,15 @@ import { createSession, SESSION_COOKIE } from './auth';
 import { createHandle } from './handle';
 import { createTestDb, makeUser } from './testing/db';
 
-function fakeEvent(cookie?: string) {
+function fakeEvent(cookie?: string, opts: { userAgent?: string; path?: string } = {}) {
 	const jar = new Map<string, string>(cookie ? [[SESSION_COOKIE, cookie]] : []);
+	const url = new URL(opts.path ?? '/', 'http://localhost');
 	return {
 		locals: {} as App.Locals,
+		url,
+		request: new Request(url, {
+			headers: opts.userAgent === undefined ? {} : { 'user-agent': opts.userAgent }
+		}),
 		cookies: {
 			get: (name: string) => jar.get(name),
 			set: vi.fn((name: string, value: string) => void jar.set(name, value)),
@@ -47,6 +52,28 @@ describe('createHandle', () => {
 			token,
 			expect.objectContaining({ httpOnly: true, secure: true })
 		);
+	});
+
+	it('turns away crawlers other than the allowed search engines, before touching the database', async () => {
+		const db = await createTestDb();
+		const user = await makeUser(db);
+		const { token } = await createSession(db, user.id);
+		const bot = fakeEvent(token, { userAgent: 'Mozilla/5.0 (compatible; GPTBot/1.0)' });
+		const { response, resolve } = await run(createHandle(db, { secure: true }), bot);
+		expect(response.status).toBe(403);
+		expect(response.headers.get('X-Frame-Options')).toBe('DENY');
+		expect(resolve).not.toHaveBeenCalled();
+		expect(bot.locals.user).toBeNull();
+		expect(bot.cookies.set).not.toHaveBeenCalled();
+
+		const google = fakeEvent(undefined, {
+			userAgent: 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)'
+		});
+		expect((await run(createHandle(db, { secure: true }), google)).response.status).toBe(200);
+
+		// The API answers to its own secret; a script calling it with curl is not a crawler.
+		const api = fakeEvent(undefined, { userAgent: 'curl/8.7.1', path: '/api/diagnose' });
+		expect((await run(createHandle(db, { secure: true }), api)).response.status).toBe(200);
 	});
 
 	it('clears an invalid session cookie', async () => {
