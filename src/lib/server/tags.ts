@@ -1,7 +1,7 @@
-import { and, asc, desc, gt, inArray, sql } from 'drizzle-orm';
+import { asc, desc, gt, inArray, sql } from 'drizzle-orm';
 import type { DB } from './db/client';
 import { tags } from './db/schema';
-import { likePattern } from './feeds';
+import { parseTags } from '#lib/text.ts';
 
 export const TAGS_PAGE_SIZE = 120;
 
@@ -59,17 +59,40 @@ export function popularTags(db: DB, limit = 6): Promise<TagCount[]> {
 		.limit(limit);
 }
 
-/** All tags in use (mature stories included), most-used first, a page at a time. */
+/**
+ * The tag-name prefix a search query means, folded the way tag names are (lowercase letters,
+ * digits and hyphens, see parseTags), or null when nothing in the query could be a tag.
+ */
+export function tagPrefix(query: string): string | null {
+	return parseTags(query)[0] ?? null;
+}
+
+/**
+ * All tags in use (mature stories included), most-used first, a page at a time. With a query,
+ * tags whose name starts with it, read as a range on the name index: that is spelled out with
+ * INDEXED BY, because the planner otherwise walks every tag in count order looking for matches.
+ */
 export async function tagIndex(db: DB, opts: { page?: number; query?: string } = {}) {
 	const page = Math.max(1, opts.page ?? 1);
-	const conditions = [gt(tags.publishedCount, 0)];
-	if (opts.query) conditions.push(sql`${tags.name} like ${likePattern(opts.query)} escape '\\'`);
-	const rows = await db
-		.select({ name: tags.name, count: tags.publishedCount })
-		.from(tags)
-		.where(and(...conditions))
-		.orderBy(desc(tags.publishedCount), asc(tags.name))
-		.limit(TAGS_PAGE_SIZE + 1)
-		.offset((page - 1) * TAGS_PAGE_SIZE);
+	const limit = TAGS_PAGE_SIZE + 1;
+	const offset = (page - 1) * TAGS_PAGE_SIZE;
+	let rows: TagCount[];
+	if (opts.query) {
+		const prefix = tagPrefix(opts.query);
+		rows = prefix
+			? await db.all<TagCount>(
+					sql`select ${tags.name} as name, ${tags.publishedCount} as count from ${tags} indexed by tags_name_unique
+						where ${tags.name} >= ${prefix} and ${tags.name} < ${prefix + '\uffff'} and ${tags.publishedCount} > 0
+						order by ${tags.publishedCount} desc, ${tags.name} asc limit ${limit} offset ${offset}`
+				)
+			: [];
+	} else
+		rows = await db
+			.select({ name: tags.name, count: tags.publishedCount })
+			.from(tags)
+			.where(gt(tags.publishedCount, 0))
+			.orderBy(desc(tags.publishedCount), asc(tags.name))
+			.limit(limit)
+			.offset(offset);
 	return { items: rows.slice(0, TAGS_PAGE_SIZE), page, hasMore: rows.length > TAGS_PAGE_SIZE };
 }

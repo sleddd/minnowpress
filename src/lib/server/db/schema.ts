@@ -46,9 +46,15 @@ export const users = sqliteTable(
 		isArchive: integer('is_archive', { mode: 'boolean' }).notNull().default(false),
 		// Set by a moderator: the member is signed out everywhere and can't sign back in.
 		suspendedAt: integer('suspended_at', { mode: 'timestamp_ms' }),
+		// Published stories, kept by syncAuthorCounts whenever a story's status changes, so the
+		// authors directory and profile headers never count the archive's 32,000 rows.
+		publishedCount: integer('published_count').notNull().default(0),
 		createdAt: createdAt()
 	},
-	(t) => [index('users_former_username_idx').on(t.formerUsername)]
+	(t) => [
+		index('users_former_username_idx').on(t.formerUsername),
+		index('users_published_count_idx').on(t.isArchive, t.publishedCount)
+	]
 );
 
 export const passkeys = sqliteTable(
@@ -208,11 +214,16 @@ export const archiveAuthors = sqliteTable(
 	{
 		url: text('url').primaryKey(),
 		name: text('name').notNull(),
+		// lower(name), so a search can match the start of a name through an index.
+		nameKey: text('name_key').notNull().default(''),
 		stories: integer('stories').notNull(),
 		firstPublishedAt: integer('first_published_at', { mode: 'timestamp_ms' }),
 		lastPublishedAt: integer('last_published_at', { mode: 'timestamp_ms' })
 	},
-	(t) => [index('archive_authors_stories_idx').on(t.stories)]
+	(t) => [
+		index('archive_authors_stories_idx').on(t.stories),
+		index('archive_authors_name_key_idx').on(t.nameKey)
+	]
 );
 
 export const comments = sqliteTable(
@@ -289,9 +300,11 @@ export const tags = sqliteTable(
 		publishedCount: integer('published_count').notNull().default(0),
 		generalCount: integer('general_count').notNull().default(0)
 	},
+	// Each index matches the whole ORDER BY of its list (count down, name up), so SQLite walks it
+	// and stops after one page.
 	(t) => [
-		index('tags_published_count_idx').on(t.publishedCount),
-		index('tags_general_count_idx').on(t.generalCount)
+		index('tags_published_count_idx').on(sql`${t.publishedCount} desc`, t.name),
+		index('tags_general_count_idx').on(sql`${t.generalCount} desc`, t.name)
 	]
 );
 
@@ -305,7 +318,11 @@ export const storyTags = sqliteTable(
 			.notNull()
 			.references(() => tags.id, { onDelete: 'cascade' })
 	},
-	(t) => [primaryKey({ columns: [t.storyId, t.tagId] }), index('story_tags_tag_idx').on(t.tagId)]
+	// (tag, story) lets a tag feed walk the tag's stories newest first and stop after one page.
+	(t) => [
+		primaryKey({ columns: [t.storyId, t.tagId] }),
+		index('story_tags_tag_idx').on(t.tagId, t.storyId)
+	]
 );
 
 export const reports = sqliteTable(

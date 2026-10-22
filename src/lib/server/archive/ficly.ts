@@ -9,7 +9,7 @@
 import { count, eq, isNotNull, sql } from 'drizzle-orm';
 import type { BatchItem } from 'drizzle-orm/batch';
 import { normalizeBody, parseTags, TAG_MAX_COUNT } from '#lib/text.ts';
-import { refreshArchiveAuthors } from '../authors';
+import { refreshAllAuthorCounts, refreshArchiveAuthors } from '../authors';
 import type { DB } from '../db/client';
 import { challenges, ratings, stories, storyTags, tags, users, type User } from '../db/schema';
 import { refreshAllTagCounts } from '../tags';
@@ -348,7 +348,10 @@ export async function importFicly(
 
 	// The summaries the directory pages read from.
 	await refreshAllTagCounts(db);
+	await refreshAllAuthorCounts(db);
 	await refreshArchiveAuthors(db);
+	// Planner statistics for the data that is now there, so indexes get chosen over scans.
+	await db.run(sql`analyze`);
 	log('summaries refreshed');
 
 	return {

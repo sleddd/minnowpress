@@ -22,7 +22,9 @@ async function feed(
 	where: SQL | undefined,
 	order: SQL[],
 	opts: FeedOptions,
-	extend: Extend = (q) => q
+	extend: Extend = (q) => q,
+	/** Whether to break ties by story id. Off when `order` is already total, so an index can serve it whole. */
+	tiebreak = true
 ) {
 	const page = Math.max(1, opts.page ?? 1);
 	const size = opts.pageSize ?? PAGE_SIZE;
@@ -50,7 +52,7 @@ async function feed(
 	type Row = Awaited<typeof base>[number];
 	const rows = (await extend(base.$dynamic())
 		.where(and(...conditions))
-		.orderBy(...order, desc(stories.id))
+		.orderBy(...order, ...(tiebreak ? [desc(stories.id)] : []))
 		.limit(size + 1)
 		.offset((page - 1) * size)) as Row[];
 
@@ -108,12 +110,23 @@ export function followingFeed(db: DB, userId: number, opts: FeedOptions = {}) {
 	return feed(db, inArray(stories.authorId, followed), [desc(stories.publishedAt)], opts);
 }
 
-/** Driven from the tag's own rows, so a tag page reads its stories and nothing else. */
+/**
+ * Driven from the tag's own rows, newest story first by id, which the (tag, story) index
+ * serves in order: a tag page reads one page of its stories, however big the tag is. Ids
+ * follow publication order closely enough (the archive was imported in order; new stories
+ * get rising ids), and this is the one feed that can't afford to sort by date.
+ */
 export function tagFeed(db: DB, tag: string, opts: FeedOptions = {}) {
-	return feed(db, undefined, [desc(stories.publishedAt)], opts, (q) =>
-		q
-			.innerJoin(storyTags, eq(storyTags.storyId, stories.id))
-			.innerJoin(tags, and(eq(tags.id, storyTags.tagId), eq(tags.name, tag)))
+	return feed(
+		db,
+		undefined,
+		[desc(storyTags.storyId)],
+		opts,
+		(q) =>
+			q
+				.innerJoin(storyTags, eq(storyTags.storyId, stories.id))
+				.innerJoin(tags, and(eq(tags.id, storyTags.tagId), eq(tags.name, tag))),
+		false
 	);
 }
 

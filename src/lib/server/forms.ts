@@ -44,7 +44,7 @@ export function queryInt(value: string | null | undefined): number | null {
  * The deepest page anyone can ask for. Every row before an offset is a row read, so a crawler
  * walking page numbers upward costs more the deeper it goes; this keeps the worst page cheap.
  */
-export const PAGE_MAX = 500;
+export const PAGE_MAX = 100;
 
 /** The `?page=` number, from 1 to PAGE_MAX. Anything else is page 1. */
 export function pageParam(value: string | null | undefined): number {

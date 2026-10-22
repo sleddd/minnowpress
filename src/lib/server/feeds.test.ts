@@ -100,7 +100,8 @@ describe('tagFeed', () => {
 	it('shows stories with the tag', async () => {
 		const a = await createStory(db, alice.id, input({ tags: ['ghost'] }));
 		await createStory(db, alice.id, input({ tags: ['sea'] }));
-		expect(ids(await tagFeed(db, 'ghost'))).toEqual([a.id]);
+		const b = await createStory(db, alice.id, input({ tags: ['ghost'] }));
+		expect(ids(await tagFeed(db, 'ghost'))).toEqual([b.id, a.id]);
 		expect(ids(await tagFeed(db, 'none'))).toEqual([]);
 	});
 });
