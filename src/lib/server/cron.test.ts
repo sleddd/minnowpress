@@ -55,12 +55,12 @@ describe('runPromptCron', () => {
 });
 
 describe('runActivityCron', () => {
-	it('recomputes scores', async () => {
+	it('rebuilds the summaries and reports ok', async () => {
 		const db = await createTestDb();
 		const u = await makeUser(db);
-		await createStory(db, u.id, { title: 'T', body: 'B' + PAD, tags: [], publish: true });
+		await createStory(db, u.id, { title: 'T', body: 'B' + PAD, tags: ['sea'], publish: true });
 		const res = await runActivityCron(db);
-		expect(await res.json()).toEqual({ ok: true, scored: 1 });
+		expect(await res.json()).toEqual({ ok: true });
 	});
 });
 

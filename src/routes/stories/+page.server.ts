@@ -1,3 +1,4 @@
+import { refreshActivityIfStale } from '#lib/server/activity.ts';
 import { db } from '#lib/server/db/index.ts';
 import { pageParam } from '#lib/server/forms.ts';
 import { activeFeed, followingFeed, latestFeed, popularFeed } from '#lib/server/feeds.ts';
@@ -12,6 +13,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		TABS.includes(requested) && (requested !== 'following' || locals.user) ? requested : 'latest';
 	const page = pageParam(url.searchParams.get('page'));
 	const opts = { viewer: locals.user, page };
+	if (tab === 'active') await refreshActivityIfStale(db);
 
 	const feed =
 		tab === 'popular'

@@ -329,6 +329,12 @@ export const reports = sqliteTable(
 	(t) => [index('reports_status_idx').on(t.status)]
 );
 
+/** When each on-demand job last ran, so a page can refresh something only when it's stale. */
+export const jobRuns = sqliteTable('job_runs', {
+	name: text('name').primaryKey(),
+	ranAt: integer('ran_at', { mode: 'timestamp_ms' }).notNull()
+});
+
 export const MODERATION_ACTIONS = [
 	'remove_story',
 	'restore_story',

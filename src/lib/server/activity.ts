@@ -1,10 +1,13 @@
-import { and, eq, gte, lt, or, sql } from 'drizzle-orm';
+import { and, eq, gt, gte, lt, ne, or, sql } from 'drizzle-orm';
 import type { DB } from './db/client';
-import { stories } from './db/schema';
+import { jobRuns, stories } from './db/schema';
 
 const HOUR = 60 * 60 * 1000;
+const MINUTE = 60 * 1000;
 /** Stories older than this drop out of the Active feed. */
 export const ACTIVE_WINDOW_DAYS = 30;
+/** How stale the Active feed may be before a page visit rescores it. */
+export const ACTIVITY_MAX_AGE = 5 * MINUTE;
 
 export interface ActivitySignals {
 	ratings: number;
@@ -52,14 +55,40 @@ export async function recomputeActivityScores(db: DB, now = new Date()): Promise
 		await db.update(stories).set({ activityScore: score }).where(eq(stories.id, s.id));
 	}
 
+	// Only stories that still carry a score, through its index: never a pass over the archive.
 	await db
 		.update(stories)
 		.set({ activityScore: 0 })
 		.where(
 			and(
-				sql`${stories.activityScore} != 0`,
-				or(sql`${stories.status} != 'published'`, lt(stories.publishedAt, since))
+				gt(stories.activityScore, 0),
+				or(ne(stories.status, 'published'), lt(stories.publishedAt, since))
 			)
 		);
 	return recent.length;
+}
+
+/**
+ * Rescores the Active feed when a page that shows it is visited, if the last rescoring is more
+ * than ACTIVITY_MAX_AGE ago. The page never waits on a failure: it's logged and the feed shows
+ * the previous scores. Returns whether a rescoring ran.
+ */
+export async function refreshActivityIfStale(
+	db: DB,
+	now = new Date(),
+	log: (message: string, error: unknown) => void = console.error
+): Promise<boolean> {
+	try {
+		const last = await db.query.jobRuns.findFirst({ where: eq(jobRuns.name, 'activity') });
+		if (last && now.getTime() - last.ranAt.getTime() < ACTIVITY_MAX_AGE) return false;
+		await db
+			.insert(jobRuns)
+			.values({ name: 'activity', ranAt: now })
+			.onConflictDoUpdate({ target: jobRuns.name, set: { ranAt: now } });
+		await recomputeActivityScores(db, now);
+		return true;
+	} catch (e) {
+		log('Activity rescoring failed; showing the previous scores', e);
+		return false;
+	}
 }
