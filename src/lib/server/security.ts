@@ -24,11 +24,19 @@ export const ANALYTICS_REPORT_HOSTS = [
 	'https://www.googletagmanager.com'
 ];
 
+/**
+ * SvelteKit's route announcer (the visually hidden element that reads the new page title to
+ * screen readers on navigation) carries one inline style attribute. This is its hash, so that
+ * exact value is allowed and every other inline style stays blocked. The test checks it against
+ * SvelteKit's own source, so an upgrade that changes the style fails the test, not the page.
+ */
+export const ROUTE_ANNOUNCER_STYLE_HASH = 'sha256-S8qMpvofolR8Mpjy4kQvEm7m1q8clzU4dfDH0AmvZjo=';
+
 /** CSP directives, shared by the kit config and the tests that check them. */
 export const CSP_DIRECTIVES = {
 	'default-src': ['self'],
 	'script-src': ['self', ...ANALYTICS_SCRIPT_HOSTS],
-	'style-src': ['self'],
+	'style-src': ['self', 'unsafe-hashes', ROUTE_ANNOUNCER_STYLE_HASH],
 	'img-src': ['self', 'data:', ...ANALYTICS_REPORT_HOSTS],
 	'font-src': ['self'],
 	'connect-src': ['self', ...ANALYTICS_REPORT_HOSTS],
