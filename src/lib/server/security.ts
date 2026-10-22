@@ -12,14 +12,26 @@ export const SECURITY_HEADERS: Record<string, string> = {
 		'camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()'
 };
 
+/**
+ * The one third party allowed to run on the site: Google Analytics (the gtag snippet in
+ * app.html). It loads its script from googletagmanager.com and reports to the
+ * google-analytics.com and analytics.google.com hosts, by fetch or by image beacon.
+ */
+export const ANALYTICS_SCRIPT_HOSTS = ['https://www.googletagmanager.com'];
+export const ANALYTICS_REPORT_HOSTS = [
+	'https://*.google-analytics.com',
+	'https://*.analytics.google.com',
+	'https://www.googletagmanager.com'
+];
+
 /** CSP directives, shared by the kit config and the tests that check them. */
 export const CSP_DIRECTIVES = {
 	'default-src': ['self'],
-	'script-src': ['self'],
+	'script-src': ['self', ...ANALYTICS_SCRIPT_HOSTS],
 	'style-src': ['self'],
-	'img-src': ['self', 'data:'],
+	'img-src': ['self', 'data:', ...ANALYTICS_REPORT_HOSTS],
 	'font-src': ['self'],
-	'connect-src': ['self'],
+	'connect-src': ['self', ...ANALYTICS_REPORT_HOSTS],
 	'form-action': ['self'],
 	'frame-ancestors': ['none'],
 	'base-uri': ['self'],
