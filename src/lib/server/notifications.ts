@@ -97,7 +97,13 @@ export async function notifyContinuation(
 				{
 					text: `Your story “${parent.title}” has a new ${story.relation}: “${story.title}” by ${writer.displayName}.`
 				},
-				{ text: excerpt(story.body, 300) },
+				// The author of the parent hasn't necessarily chosen to read mature stories.
+				{
+					text:
+						story.isMature && !author.showMature
+							? 'It’s marked mature, so it isn’t quoted here.'
+							: excerpt(story.body, 300)
+				},
 				{ text: `Read the ${story.relation}`, url: `${ctx.origin}/s/${story.id}` }
 			]
 		)

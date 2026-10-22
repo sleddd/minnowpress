@@ -9,18 +9,32 @@ import { fileReport, REPORT_REASONS, type ReportReason } from '#lib/server/moder
 import { deliverSafely, notifyComment, notifyContinuation } from '#lib/server/notifications.ts';
 import { getUserRating, rateStory } from '#lib/server/ratings.ts';
 import { addComment, deleteComment, listComments } from '#lib/server/social.ts';
-import { deleteStory, getStory, publishStory, removeStory } from '#lib/server/stories.ts';
+import {
+	deleteStory,
+	getStory,
+	matureHiddenFrom,
+	publishStory,
+	removeStory
+} from '#lib/server/stories.ts';
+import type { User } from '#lib/server/db/schema.ts';
 import type { Actions, PageServerLoad } from './$types';
+
+/** The story id, once it's clear the member may see the story they're acting on. */
+async function readable(param: string, user: User): Promise<number> {
+	const id = paramInt(param);
+	const story = await getStory(db, id, user.id);
+	if (!story) error(404, 'Story not found');
+	if (matureHiddenFrom(story, user))
+		error(403, 'Turn on mature stories in Settings to read and respond to this one.');
+	return id;
+}
 
 export const load: PageServerLoad = async ({ params, locals }) => {
 	const id = paramInt(params.id);
 	const viewer = locals.user;
 	const story = await getStory(db, id, viewer?.id);
 	if (!story) error(404, 'Story not found');
-	// Mature stories are for readers who turned them on in Settings, plus the author and
-	// moderators. Everyone else gets the title and a notice, never the text or its comments.
-	const matureHidden =
-		story.isMature && !viewer?.showMature && viewer?.id !== story.authorId && !isModerator(viewer);
+	const matureHidden = matureHiddenFrom(story, viewer);
 
 	const [comments, rating, bookmarked] = await Promise.all([
 		story.status === 'published' && !matureHidden ? listComments(db, id) : [],
@@ -43,8 +57,9 @@ export const actions: Actions = {
 	rate: async ({ params, locals, url, request }) => {
 		const user = requireUser(locals.user, url);
 		const score = formInt(await request.formData(), 'score');
+		const id = await readable(params.id, user);
 		try {
-			return await rateStory(db, user.id, paramInt(params.id), score ?? 0);
+			return await rateStory(db, user.id, id, score ?? 0);
 		} catch (e) {
 			return toActionFailure(e);
 		}
@@ -52,8 +67,9 @@ export const actions: Actions = {
 
 	bookmark: async ({ params, locals, url }) => {
 		const user = requireUser(locals.user, url);
+		const id = await readable(params.id, user);
 		try {
-			return await toggleBookmark(db, user.id, paramInt(params.id));
+			return await toggleBookmark(db, user.id, id);
 		} catch (e) {
 			return toActionFailure(e);
 		}
@@ -62,10 +78,11 @@ export const actions: Actions = {
 	comment: async ({ params, locals, url, request }) => {
 		const user = requireUser(locals.user, url);
 		const body = formString(await request.formData(), 'body');
+		const id = await readable(params.id, user);
 		if (!(await underHourlyLimit(db, 'comment', user.id)))
 			return fail(429, { commentBody: body, errors: { body: LIMIT_MESSAGE } });
 		try {
-			const comment = await addComment(db, user.id, paramInt(params.id), body);
+			const comment = await addComment(db, user.id, id, body);
 			await deliverSafely(() => notifyComment(db, notify, comment.id));
 			return { commented: true };
 		} catch (e) {

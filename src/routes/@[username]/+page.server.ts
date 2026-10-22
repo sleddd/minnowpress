@@ -1,8 +1,9 @@
 import { error } from '@sveltejs/kit';
-import { requireUser } from '#lib/server/auth.ts';
+import { isModerator, requireModerator, requireUser } from '#lib/server/auth.ts';
 import { db } from '#lib/server/db/index.ts';
 import { authorFeed } from '#lib/server/feeds.ts';
 import { toActionFailure } from '#lib/server/forms.ts';
+import { suspendUser, unsuspendUser } from '#lib/server/moderation.ts';
 import { follow, followCounts, isFollowing, unfollow } from '#lib/server/social.ts';
 import { countPublishedStories, getUserStories } from '#lib/server/stories.ts';
 import { getUserByUsername } from '#lib/server/users.ts';
@@ -61,7 +62,12 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 		feed,
 		drafts,
 		isSelf,
-		following
+		following,
+		// Moderators can suspend ordinary members from their profile.
+		moderation:
+			isModerator(viewer) && user.role === 'user' && !user.isArchive
+				? { suspended: Boolean(user.suspendedAt) }
+				: null
 	};
 };
 
@@ -79,5 +85,19 @@ export const actions: Actions = {
 		const viewer = requireUser(locals.user, url);
 		const user = await profileUser(params.username);
 		await unfollow(db, viewer.id, user.id);
+	},
+	suspend: async ({ params, locals }) => {
+		requireModerator(locals.user);
+		const user = await profileUser(params.username);
+		try {
+			await suspendUser(db, user.id);
+		} catch (e) {
+			return toActionFailure(e);
+		}
+	},
+	unsuspend: async ({ params, locals }) => {
+		requireModerator(locals.user);
+		const user = await profileUser(params.username);
+		await unsuspendUser(db, user.id);
 	}
 };

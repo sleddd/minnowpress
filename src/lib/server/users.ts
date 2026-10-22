@@ -1,6 +1,6 @@
 import { and, eq, ne } from 'drizzle-orm';
 import type { Theme } from '#lib/theme.ts';
-import { countGraphemes, validateUsername } from '#lib/text.ts';
+import { countGraphemes, RESERVED_USERNAMES, validateUsername } from '#lib/text.ts';
 import type { DB } from './db/client';
 import { users, type User } from './db/schema';
 import { ForbiddenError, NotFoundError, ValidationError } from './errors';
@@ -27,7 +27,10 @@ export async function suggestUsername(db: DB, email: string): Promise<string> {
 		.slice(0, 16);
 	if (base.length < 3) base = `writer${base}`;
 	let candidate = base;
-	for (let n = 2; await db.query.users.findFirst({ where: eq(users.username, candidate) }); n++) {
+	const taken = async (name: string) =>
+		RESERVED_USERNAMES.has(name) ||
+		Boolean(await db.query.users.findFirst({ where: eq(users.username, name) }));
+	for (let n = 2; await taken(candidate); n++) {
 		candidate = `${base}${n}`;
 	}
 	return candidate;
@@ -40,7 +43,8 @@ export async function findOrCreateUserByEmail(
 ): Promise<{ user: User; created: boolean }> {
 	const email = normalizeEmail(rawEmail);
 	const existing = await db.query.users.findFirst({ where: eq(users.email, email) });
-	if (existing?.isArchive) throw new ForbiddenError('This account cannot sign in.');
+	if (existing?.isArchive || existing?.suspendedAt)
+		throw new ForbiddenError('This account cannot sign in.');
 	if (existing) return { user: existing, created: false };
 
 	const username = await suggestUsername(db, email);
@@ -91,7 +95,11 @@ export async function updateProfile(db: DB, userId: number, input: ProfileInput)
 	const errors: Record<string, string> = {};
 	const username = input.username.trim().toLowerCase();
 	const usernameError = validateUsername(username);
+	const current = await getUserById(db, userId);
 	if (usernameError) errors.username = usernameError;
+	// Someone who already has a reserved name keeps it; nobody new can take one.
+	else if (RESERVED_USERNAMES.has(username) && current?.username !== username)
+		errors.username = 'That username is reserved.';
 	else {
 		const taken = await db.query.users.findFirst({
 			where: and(eq(users.username, username), ne(users.id, userId))

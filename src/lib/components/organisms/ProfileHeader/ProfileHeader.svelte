@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { formatDate } from '#lib/format.ts';
 	import type { ProfileView } from '#lib/types.ts';
-	import { Avatar, Heading, Link, Text } from '../../atoms/index.ts';
+	import { Avatar, Button, Heading, Link, Text } from '../../atoms/index.ts';
 	import { FollowButton } from '../../molecules/index.ts';
 
 	interface Props {
@@ -10,9 +10,11 @@
 		isSelf: boolean;
 		following: boolean;
 		signedIn: boolean;
+		/** Shown to moderators on an ordinary member's page. */
+		moderation?: { suspended: boolean } | null;
 	}
 
-	let { profile, counts, isSelf, following, signedIn }: Props = $props();
+	let { profile, counts, isSelf, following, signedIn, moderation = null }: Props = $props();
 
 	const host = $derived(profile.website ? new URL(profile.website).host : null);
 	const bio = $derived(profile.bio.trim());
@@ -48,6 +50,20 @@
 			<FollowButton username={profile.username} {following} {signedIn} />
 		{/if}
 	</div>
+	{#if moderation}
+		<form
+			class="moderation"
+			method="POST"
+			action={moderation.suspended ? '?/unsuspend' : '?/suspend'}
+		>
+			{#if moderation.suspended}
+				<Text tone="muted" size="sm">Suspended: signed out and can’t sign in.</Text>
+				<Button type="submit" variant="secondary" size="sm">Lift suspension</Button>
+			{:else}
+				<Button type="submit" variant="danger" size="sm">Suspend member</Button>
+			{/if}
+		</form>
+	{/if}
 </header>
 
 <style>
@@ -112,6 +128,12 @@
 	.stats span {
 		color: var(--color-text-muted);
 		font-size: var(--text-sm);
+	}
+
+	.moderation {
+		display: grid;
+		gap: var(--space-2);
+		justify-items: start;
 	}
 
 	/* Edit profile / Follow: a dashed outline button. */

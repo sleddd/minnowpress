@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
-import { signIn, signOut, signUp, writeStory } from './helpers';
+import { createLoginToken } from '../src/lib/server/auth.ts';
+import { db, signIn, signOut, signUp, writeStory } from './helpers';
 
 test('a story reported as AI-generated can be removed by an admin', async ({ page }) => {
 	await signUp(page, 'dave@example.com', 'dave');
@@ -17,7 +18,7 @@ test('a story reported as AI-generated can be removed by an admin', async ({ pag
 	await signOut(page);
 
 	// ADMIN_EMAILS makes this account an admin on sign-up.
-	await signUp(page, 'admin@example.com', 'admin');
+	await signUp(page, 'admin@example.com', 'editor');
 	await page.goto('/admin/reports');
 	await expect(page.getByText('Suspected AI')).toBeVisible();
 	await page.getByRole('button', { name: 'Remove story' }).click();
@@ -74,4 +75,53 @@ test('pages send the CSP and security headers', async ({ request }) => {
 	expect(headers['content-security-policy']).toContain("frame-ancestors 'none'");
 	expect(headers['x-content-type-options']).toBe('nosniff');
 	expect(headers['permissions-policy']).toContain('camera=()');
+});
+
+test('a moderator can suspend a member, who is then signed out for good', async ({
+	page,
+	browser
+}) => {
+	const member = await browser.newPage();
+	await signUp(member, 'frank@example.com', 'frank');
+
+	await signIn(page, 'admin@example.com');
+	await page.goto('/@frank');
+	await page.getByRole('button', { name: 'Suspend member' }).click();
+	await expect(page.getByRole('button', { name: 'Lift suspension' })).toBeVisible();
+
+	// Frank's open session is gone, and a fresh sign-in link doesn't work.
+	await member.goto('/settings');
+	await expect(member).toHaveURL(/\/login/);
+	const token = await createLoginToken(db, 'frank@example.com');
+	await member.goto(`/login/verify?token=${token}`);
+	await member.getByRole('button', { name: 'Continue' }).click();
+	await expect(member).toHaveURL(/error=link/);
+
+	await page.getByRole('button', { name: 'Lift suspension' }).click();
+	await expect(page.getByRole('button', { name: 'Suspend member' })).toBeVisible();
+	await signIn(member, 'frank@example.com');
+	await member.close();
+});
+
+test('readers who hide mature stories cannot act on one they cannot see', async ({ page }) => {
+	await signUp(page, 'gina@example.com', 'gina');
+	await page.goto('/write');
+	await page.getByRole('checkbox', { name: /mature/i }).check();
+	await writeStory(page, 'After Dark', 'A story for readers who opted in to mature stories.');
+	const storyUrl = page.url();
+	await signOut(page);
+
+	await signUp(page, 'hal@example.com', 'hal');
+	await page.goto(storyUrl);
+	for (const action of ['bookmark', 'comment', 'rate']) {
+		const response = await page.request.post(`${storyUrl}?/${action}`, {
+			form: { body: 'Hello', score: '5' },
+			headers: { origin: new URL(storyUrl).origin, accept: 'application/json' }
+		});
+		expect(response.status()).toBe(403);
+		expect(await response.json()).toMatchObject({
+			type: 'error',
+			error: { message: expect.stringContaining('mature') }
+		});
+	}
 });

@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { DB } from './db/client';
 import { recentActivity, storyCounts } from './desk';
-import { addComment } from './social';
-import { continueStory, createStory } from './stories';
+import { addComment, deleteComment } from './social';
+import { continueStory, createStory, removeStory } from './stories';
 import { createTestDb, makeUser, PAD } from './testing/db';
 
 let db: DB;
@@ -47,6 +47,21 @@ describe('recentActivity', () => {
 		const mine = await createStory(db, me.id, input());
 		for (let i = 0; i < 3; i++) await addComment(db, them.id, mine.id, `c${i}`);
 		expect(await recentActivity(db, me.id, 2)).toHaveLength(2);
+	});
+});
+
+describe('recentActivity after moderation', () => {
+	it('leaves out deleted comments and stories that were taken down', async () => {
+		const mine = await createStory(db, me.id, input());
+		const gone = await addComment(db, them.id, mine.id, 'spam');
+		await deleteComment(db, them.id, gone.id);
+		expect(await recentActivity(db, me.id)).toEqual([]);
+
+		const other = await createStory(db, me.id, input());
+		await addComment(db, them.id, other.id, 'Lovely');
+		await continueStory(db, them.id, other.id, 'sequel', input());
+		await removeStory(db, other.id);
+		expect(await recentActivity(db, me.id)).toEqual([]);
 	});
 });
 

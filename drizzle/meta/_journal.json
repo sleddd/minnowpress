@@ -64,6 +64,13 @@
       "when": 1792641341467,
       "tag": "0008_story_edited_at",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1792652133420,
+      "tag": "0009_user_suspension",
+      "breakpoints": true
     }
   ]
 }

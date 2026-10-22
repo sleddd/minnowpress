@@ -26,6 +26,7 @@
 			isSelf={data.isSelf}
 			following={data.following}
 			signedIn={Boolean(data.viewer)}
+			moderation={data.moderation}
 		/>
 	{/snippet}
 	{#if data.drafts.length}

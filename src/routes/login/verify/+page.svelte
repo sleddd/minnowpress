@@ -11,5 +11,5 @@
 <PageMeta title="Sign in" siteName={PUBLIC_APP_NAME} noReferrer />
 
 <FormLayout>
-	<VerifyLogin appName={PUBLIC_APP_NAME} token={data.token} next={data.next} />
+	<VerifyLogin appName={PUBLIC_APP_NAME} token={data.token} email={data.email} next={data.next} />
 </FormLayout>

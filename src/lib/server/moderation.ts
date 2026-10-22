@@ -1,8 +1,8 @@
 import { and, asc, eq, inArray } from 'drizzle-orm';
 import { countGraphemes } from '#lib/text.ts';
 import type { DB } from './db/client';
-import { comments, reports, stories, users, type Report } from './db/schema';
-import { NotFoundError, ValidationError } from './errors';
+import { comments, reports, sessions, stories, users, type Report } from './db/schema';
+import { ForbiddenError, NotFoundError, ValidationError } from './errors';
 import { deleteComment } from './social';
 import { removeStory } from './stories';
 
@@ -135,4 +135,26 @@ export async function resolveReport(
 				eq(reports.status, 'open')
 			)
 		);
+}
+
+/**
+ * Suspends a member: every session ends and they can't sign back in. Their stories stay up;
+ * take those down through reports. Only ordinary members can be suspended, never staff.
+ */
+export async function suspendUser(db: DB, userId: number, now = new Date()): Promise<void> {
+	const target = await db.query.users.findFirst({ where: eq(users.id, userId) });
+	if (!target || target.isArchive) throw new NotFoundError('User not found');
+	if (target.role !== 'user') throw new ForbiddenError('Moderators and admins can’t be suspended.');
+	await db.update(users).set({ suspendedAt: now }).where(eq(users.id, userId));
+	await db.delete(sessions).where(eq(sessions.userId, userId));
+}
+
+/** Lets a suspended member sign in again. */
+export async function unsuspendUser(db: DB, userId: number): Promise<void> {
+	const [row] = await db
+		.update(users)
+		.set({ suspendedAt: null })
+		.where(eq(users.id, userId))
+		.returning({ id: users.id });
+	if (!row) throw new NotFoundError('User not found');
 }

@@ -8,6 +8,7 @@ import {
 	revokeOtherSessions,
 	revokeSession,
 	createLoginToken,
+	peekLoginToken,
 	createSession,
 	generateToken,
 	hashToken,
@@ -261,5 +262,26 @@ describe('signIn', () => {
 		expect(name).toBe(SESSION_COOKIE);
 		expect(options).toMatchObject({ httpOnly: true, secure: true, sameSite: 'lax' });
 		expect((await validateSession(db, token))?.user.id).toBe(user.id);
+	});
+});
+
+describe('peekLoginToken', () => {
+	it('names the account a live token signs in to, without using it up', async () => {
+		const now = new Date('2026-03-01T00:00:00Z');
+		const token = await createLoginToken(db, 'jane@example.com', now);
+		expect(await peekLoginToken(db, token, now)).toBe('jane@example.com');
+		expect(await peekLoginToken(db, 'nope', now)).toBeNull();
+		expect(
+			await peekLoginToken(db, token, new Date(now.getTime() + LOGIN_TOKEN_TTL + 1))
+		).toBeNull();
+		expect(await consumeLoginToken(db, token, now)).toBe('jane@example.com');
+	});
+});
+
+describe('suspended members', () => {
+	it('lose their sessions', async () => {
+		const user = await makeUser(db, { suspendedAt: new Date() });
+		const { token } = await createSession(db, user.id);
+		expect(await validateSession(db, token)).toBeNull();
 	});
 });

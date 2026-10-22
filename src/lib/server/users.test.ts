@@ -106,6 +106,16 @@ describe('updateProfile', () => {
 		});
 	});
 
+	it('refuses reserved usernames, but lets someone who has one keep it', async () => {
+		const u = await makeUser(db);
+		const err = await updateProfile(db, u.id, profile({ username: 'Admin' })).catch((e) => e);
+		expect(err.fields).toEqual({ username: 'That username is reserved.' });
+		const old = await makeUser(db, { username: 'support' });
+		await expect(
+			updateProfile(db, old.id, profile({ username: 'support' }))
+		).resolves.toMatchObject({ username: 'support' });
+	});
+
 	it('keeps your own username without a conflict', async () => {
 		const u = await makeUser(db, { username: 'jane' });
 		await expect(updateProfile(db, u.id, profile())).resolves.toMatchObject({ username: 'jane' });
@@ -131,6 +141,19 @@ describe('updateProfile', () => {
 			profile({ username: 'no spaces', displayName: 'x'.repeat(51) })
 		).catch((e) => e);
 		expect(Object.keys(err.fields).sort()).toEqual(['displayName', 'username']);
+	});
+});
+
+describe('reserved usernames', () => {
+	it('are never suggested at sign-up', async () => {
+		expect(await suggestUsername(db, 'admin@example.com')).toBe('admin2');
+	});
+});
+
+describe('suspended account', () => {
+	it('cannot sign in', async () => {
+		await makeUser(db, { email: 'spam@example.com', suspendedAt: new Date() });
+		await expect(findOrCreateUserByEmail(db, 'spam@example.com')).rejects.toThrow(ForbiddenError);
 	});
 });
 

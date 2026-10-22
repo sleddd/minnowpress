@@ -8,8 +8,10 @@ describe('VerifyLogin', () => {
 		const screen = await render(VerifyLogin, {
 			appName: 'MinnowPress',
 			token: 'abc',
+			email: 'jane@example.com',
 			next: '/write'
 		});
+		await expect.element(screen.getByText('jane@example.com')).toBeInTheDocument();
 		await expect
 			.element(screen.getByRole('button', { name: 'Continue' }))
 			.toHaveAttribute('type', 'submit');

@@ -13,6 +13,7 @@ import {
 	getStory,
 	getUserStories,
 	publishStory,
+	matureHiddenFrom,
 	removeStory,
 	restoreStory,
 	tagsFor,
@@ -352,5 +353,23 @@ describe('archiveOf', () => {
 	it('is included on story details', async () => {
 		const story = await createStory(db, alice.id, input());
 		expect((await getStory(db, story.id))?.archive).toBeNull();
+	});
+});
+
+describe('matureHiddenFrom', () => {
+	const story = { isMature: true, authorId: 1 };
+	const reader = { id: 2, showMature: false, role: 'user' as const };
+
+	it('hides mature stories from guests and readers who have not opted in', () => {
+		expect(matureHiddenFrom(story, null)).toBe(true);
+		expect(matureHiddenFrom(story, reader)).toBe(true);
+	});
+
+	it('shows them to readers who opted in, the author, and staff, and never hides the rest', () => {
+		expect(matureHiddenFrom(story, { ...reader, showMature: true })).toBe(false);
+		expect(matureHiddenFrom(story, { ...reader, id: 1 })).toBe(false);
+		expect(matureHiddenFrom(story, { ...reader, role: 'mod' })).toBe(false);
+		expect(matureHiddenFrom(story, { ...reader, role: 'admin' })).toBe(false);
+		expect(matureHiddenFrom({ ...story, isMature: false }, null)).toBe(false);
 	});
 });

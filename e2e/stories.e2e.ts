@@ -10,7 +10,6 @@ test('sign-in form sends a magic link', async ({ page }) => {
 
 test('a bad sign-in link is rejected', async ({ page }) => {
 	await page.goto('/login/verify?token=nope');
-	await page.getByRole('button', { name: 'Continue' }).click();
 	await expect(page.getByRole('alert')).toContainText('invalid or has expired');
 });
 
