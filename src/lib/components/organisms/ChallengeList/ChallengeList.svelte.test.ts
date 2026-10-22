@@ -101,3 +101,15 @@ describe('ChallengeList', () => {
 			.toHaveAttribute('href', '/write?challenge=1');
 	});
 });
+
+describe('ChallengeList prompts', () => {
+	it('shows a past challenge’s prompt whole, not cut short', async () => {
+		const long =
+			'Write about a door that only opens for one person, and what happens on the day it opens for someone else.';
+		const screen = await render(ChallengeList, {
+			open: [],
+			closed: [c(7, 'The Door', { promptText: long })]
+		});
+		await expect.element(screen.getByText(long)).toBeInTheDocument();
+	});
+});

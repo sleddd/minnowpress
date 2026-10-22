@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import { excerpt, formatDate, pluralize, toDateInput } from '#lib/format.ts';
+	import { formatDate, pluralize, toDateInput } from '#lib/format.ts';
 	import type { ChallengeView } from '#lib/types.ts';
 	import { Badge, Heading, Link, Notice } from '../../atoms/index.ts';
 	import { Pagination } from '../../molecules/index.ts';
@@ -44,7 +44,7 @@
 				<span class="n">{first + i}</span>
 				<div class="what">
 					<Link href="/challenges/{c.id}" variant="story">{c.title}</Link>
-					<p class="prompt">{excerpt(c.promptText, 140)}</p>
+					<p class="prompt">{c.promptText}</p>
 					<p class="meta">
 						{#if status === 'upcoming'}
 							{i === 0 ? 'Next in line' : c.startsAt ? `Starts ${formatDate(c.startsAt)}` : ''}
@@ -189,9 +189,9 @@
 	}
 
 	.prompt {
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
+		max-width: var(--measure);
+		white-space: pre-line;
+		overflow-wrap: anywhere;
 	}
 
 	.meta {
