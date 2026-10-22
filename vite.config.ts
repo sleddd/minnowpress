@@ -16,7 +16,8 @@ export default defineConfig({
 			// The e2e server gets its own output dir: generated files (including env values) are
 			// shared and hot-reloaded, so a second dev server would otherwise rewire yours to e2e.db.
 			outDir: process.env.SVELTEKIT_OUT_DIR ?? '.svelte-kit',
-			// Hashes for prerendered pages, nonces for dynamic ones. No third-party scripts, ever.
+			// Hashes for prerendered pages, nonces for dynamic ones. The only third-party script is
+			// Google Analytics; see ANALYTICS_* in security.ts.
 			csp: {
 				mode: 'auto',
 				directives: Object.fromEntries(Object.entries(CSP_DIRECTIVES).map(([k, v]) => [k, [...v]]))

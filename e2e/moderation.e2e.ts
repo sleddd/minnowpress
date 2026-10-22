@@ -71,7 +71,10 @@ test('cron endpoints require the secret', async ({ request }) => {
 test('pages send the CSP and security headers', async ({ request }) => {
 	const res = await request.get('/');
 	const headers = res.headers();
-	expect(headers['content-security-policy']).toContain("script-src 'self' 'nonce-");
+	// Only the site itself and the Google Analytics loader may run scripts, with a nonce.
+	expect(headers['content-security-policy']).toContain(
+		"script-src 'self' https://www.googletagmanager.com 'nonce-"
+	);
 	expect(headers['content-security-policy']).toContain("frame-ancestors 'none'");
 	expect(headers['x-content-type-options']).toBe('nosniff');
 	expect(headers['permissions-policy']).toContain('camera=()');

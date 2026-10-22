@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { applySecurityHeaders, CSP_DIRECTIVES, SECURITY_HEADERS } from './security';
+import {
+	ANALYTICS_REPORT_HOSTS,
+	ANALYTICS_SCRIPT_HOSTS,
+	applySecurityHeaders,
+	CSP_DIRECTIVES,
+	SECURITY_HEADERS
+} from './security';
 
 describe('applySecurityHeaders', () => {
 	it('sets every security header', () => {
@@ -26,11 +32,13 @@ describe('applySecurityHeaders', () => {
 });
 
 describe('CSP_DIRECTIVES', () => {
-	it('allows only same-origin scripts, styles, and connections', () => {
-		expect(CSP_DIRECTIVES['script-src']).toEqual(['self']);
+	it('allows same-origin scripts, styles and connections, plus Google Analytics', () => {
+		expect(CSP_DIRECTIVES['script-src']).toEqual(['self', ...ANALYTICS_SCRIPT_HOSTS]);
+		expect(ANALYTICS_SCRIPT_HOSTS).toEqual(['https://www.googletagmanager.com']);
 		expect(CSP_DIRECTIVES['style-src']).toEqual(['self']);
-		expect(CSP_DIRECTIVES['connect-src']).toEqual(['self']);
-		expect(CSP_DIRECTIVES['img-src']).toEqual(['self', 'data:']);
+		expect(CSP_DIRECTIVES['connect-src']).toEqual(['self', ...ANALYTICS_REPORT_HOSTS]);
+		expect(CSP_DIRECTIVES['img-src']).toEqual(['self', 'data:', ...ANALYTICS_REPORT_HOSTS]);
+		for (const host of ANALYTICS_REPORT_HOSTS) expect(host).toMatch(/^https:\/\/(\*\.|www\.)/);
 		expect(CSP_DIRECTIVES['frame-ancestors']).toEqual(['none']);
 		expect(CSP_DIRECTIVES['object-src']).toEqual(['none']);
 	});
