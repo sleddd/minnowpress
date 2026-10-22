@@ -17,6 +17,22 @@ describe('magicLinkEmail', () => {
 		expect(email.html).toContain('href="https://x.test/login/verify?token=a&amp;b"');
 	});
 
+	it("shows the fish logo from the link's own site and the split wordmark", () => {
+		const { html } = magicLinkEmail(
+			'a@b.co',
+			'https://minnow.test/login/verify?t=1',
+			'MinnowPress'
+		);
+		expect(html).toContain('src="https://minnow.test/email-logo.png"');
+		expect(html).toContain('minnow<em class="press">press</em>');
+	});
+
+	it('leaves the fish out when the link is not absolute', () => {
+		const { html } = magicLinkEmail('a@b.co', 'u', 'Fic');
+		expect(html).not.toContain('<img');
+		expect(html).toContain('>fic</td>');
+	});
+
 	it('escapes the app name', () => {
 		expect(magicLinkEmail('a@b.co', 'u', '<b>').html).toContain('&lt;b&gt;');
 	});
