@@ -1,3 +1,4 @@
+import { createHash, timingSafeEqual } from 'node:crypto';
 import { json } from '@sveltejs/kit';
 import { recomputeActivityScores } from './activity';
 import { ensureCurrentChallenge } from './challenges';
@@ -8,7 +9,12 @@ import { ficlyExamples, generatePrompts, pickSeed, type PromptClient } from './p
 /** Vercel Cron sends `Authorization: Bearer $CRON_SECRET`. No secret configured means no access. */
 export function isAuthorizedCron(request: Request, secret: string | undefined): boolean {
 	if (!secret) return false;
-	return request.headers.get('authorization') === `Bearer ${secret}`;
+	// Compared as fixed-length digests in constant time, so response timing can't leak the secret.
+	const digest = (s: string) => createHash('sha256').update(s).digest();
+	return timingSafeEqual(
+		digest(request.headers.get('authorization') ?? ''),
+		digest(`Bearer ${secret}`)
+	);
 }
 
 /**

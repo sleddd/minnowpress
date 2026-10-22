@@ -149,4 +149,24 @@ describe('StoryView', () => {
 		await expect.element(screen.getByRole('link', { name: 'Read bio' })).not.toBeInTheDocument();
 		await expectAccessible(screen.container);
 	});
+
+	it('withholds a mature story from readers who have not opted in', async () => {
+		const hidden = story({ isMature: true, body: '' });
+		const screen = await render(StoryView, { story: hidden, ...reader, matureHidden: true });
+		await expect.element(screen.getByText('This story is marked mature.')).toBeInTheDocument();
+		await expect
+			.element(screen.getByRole('link', { name: 'Turn on mature stories in Settings' }))
+			.toHaveAttribute('href', '/settings');
+		await expectAccessible(screen.container);
+
+		const out = await render(StoryView, {
+			story: hidden,
+			...reader,
+			signedIn: false,
+			matureHidden: true
+		});
+		await expect
+			.element(out.getByRole('link', { name: 'Sign in', exact: true }))
+			.toHaveAttribute('href', '/login?next=/s/10');
+	});
 });

@@ -25,6 +25,8 @@
 		rating?: number | null;
 		bookmarked?: boolean;
 		reported?: boolean;
+		/** A mature story the viewer hasn't opted in to: its text was withheld. */
+		matureHidden?: boolean;
 	}
 
 	let {
@@ -34,7 +36,8 @@
 		isModerator,
 		rating = null,
 		bookmarked = false,
-		reported = false
+		reported = false,
+		matureHidden = false
 	}: Props = $props();
 
 	const published = $derived(story.status === 'published');
@@ -75,7 +78,19 @@
 
 	{#if story.isMature}<div><Badge tone="warning">Mature</Badge></div>{/if}
 
-	<div class="body"><Prose text={story.body} /></div>
+	{#if matureHidden}
+		<Notice>
+			This story is marked mature.
+			{#if signedIn}
+				<Link href="/settings">Turn on mature stories in Settings</Link> to read it.
+			{:else}
+				<Link href="/login?next=/s/{story.id}">Sign in</Link> and turn on mature stories in Settings to
+				read it.
+			{/if}
+		</Notice>
+	{:else}
+		<div class="body"><Prose text={story.body} /></div>
+	{/if}
 
 	{#if published}
 		<div class="ratings">

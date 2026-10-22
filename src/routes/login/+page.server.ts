@@ -1,5 +1,5 @@
 import { fail, redirect } from '@sveltejs/kit';
-import { PUBLIC_APP_NAME } from '$app/env/public';
+import { PUBLIC_APP_NAME, PUBLIC_ORIGIN } from '$app/env/public';
 import { allowLoginRequest, createLoginToken, safeNext } from '#lib/server/auth.ts';
 import { db } from '#lib/server/db/index.ts';
 import { send } from '#lib/server/app/index.ts';
@@ -15,7 +15,7 @@ export const load: PageServerLoad = ({ locals, url }) => {
 };
 
 export const actions: Actions = {
-	default: async ({ request, url, getClientAddress }) => {
+	default: async ({ request, getClientAddress }) => {
 		const data = await request.formData();
 		const email = normalizeEmail(formString(data, 'email'));
 		const next = safeNext(formString(data, 'next'));
@@ -27,7 +27,8 @@ export const actions: Actions = {
 			});
 
 		const token = await createLoginToken(db, email);
-		const link = new URL('/login/verify', url.origin);
+		// The canonical origin, never the request's Host, so a forged Host can't aim the link elsewhere.
+		const link = new URL('/login/verify', PUBLIC_ORIGIN);
 		link.searchParams.set('token', token);
 		if (next !== '/') link.searchParams.set('next', next);
 		await send(magicLinkEmail(email, link.toString(), PUBLIC_APP_NAME));

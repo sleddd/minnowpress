@@ -1,4 +1,4 @@
-import { error, redirect } from '@sveltejs/kit';
+import { error, fail, redirect } from '@sveltejs/kit';
 import { parseTags } from '#lib/text.ts';
 import type { Relation } from '#lib/types.ts';
 import { notify } from '#lib/server/app/index.ts';
@@ -8,6 +8,7 @@ import { ensureCurrentChallenge, getChallenge, openChallenges } from '#lib/serve
 import { db } from '#lib/server/db/index.ts';
 import { storyCounts } from '#lib/server/desk.ts';
 import { formBool, formInt, formString, toActionFailure } from '#lib/server/forms.ts';
+import { LIMIT_MESSAGE, underHourlyLimit } from '#lib/server/limits.ts';
 import {
 	continueStory,
 	createStory,
@@ -109,6 +110,8 @@ export const actions: Actions = {
 		const editId = formInt(data, 'editId');
 		const parentId = formInt(data, 'parentId');
 		const relation = formString(data, 'relation') === 'prequel' ? 'prequel' : 'sequel';
+		if (!editId && !(await underHourlyLimit(db, 'story', user.id)))
+			return fail(429, { values, errors: { form: LIMIT_MESSAGE } });
 
 		let storyId: number;
 		try {

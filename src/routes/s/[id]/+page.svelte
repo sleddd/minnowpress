@@ -37,7 +37,7 @@
 {/snippet}
 
 {#snippet below()}
-	{#if published}
+	{#if published && !data.matureHidden}
 		<Continuations
 			storyId={story.id}
 			prequels={story.prequels}
@@ -62,6 +62,7 @@
 		isModerator={data.isModerator}
 		rating={data.rating}
 		bookmarked={data.bookmarked}
+		matureHidden={data.matureHidden}
 		{reported}
 	/>
 </ArticleLayout>

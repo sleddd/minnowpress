@@ -52,4 +52,13 @@ describe('senders', () => {
 		await createSender('key', 'f')(email);
 		expect(send).toHaveBeenCalledTimes(1);
 	});
+
+	it('createSender refuses to send in production without a key, rather than logging links', async () => {
+		const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+		await expect(createSender(undefined, 'f', { production: true })(email)).rejects.toThrow(
+			'RESEND_API_KEY'
+		);
+		expect(log).not.toHaveBeenCalled();
+		log.mockRestore();
+	});
 });

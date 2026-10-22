@@ -4,6 +4,7 @@ import { isModerator, requireModerator, requireUser } from '#lib/server/auth.ts'
 import { isBookmarked, toggleBookmark } from '#lib/server/bookmarks.ts';
 import { db } from '#lib/server/db/index.ts';
 import { formInt, formString, paramInt, toActionFailure } from '#lib/server/forms.ts';
+import { LIMIT_MESSAGE, underHourlyLimit } from '#lib/server/limits.ts';
 import { fileReport, REPORT_REASONS, type ReportReason } from '#lib/server/moderation.ts';
 import { deliverSafely, notifyComment, notifyContinuation } from '#lib/server/notifications.ts';
 import { getUserRating, rateStory } from '#lib/server/ratings.ts';
@@ -16,15 +17,20 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	const viewer = locals.user;
 	const story = await getStory(db, id, viewer?.id);
 	if (!story) error(404, 'Story not found');
+	// Mature stories are for readers who turned them on in Settings, plus the author and
+	// moderators. Everyone else gets the title and a notice, never the text or its comments.
+	const matureHidden =
+		story.isMature && !viewer?.showMature && viewer?.id !== story.authorId && !isModerator(viewer);
 
 	const [comments, rating, bookmarked] = await Promise.all([
-		story.status === 'published' ? listComments(db, id) : [],
+		story.status === 'published' && !matureHidden ? listComments(db, id) : [],
 		viewer ? getUserRating(db, viewer.id, id) : null,
 		viewer ? isBookmarked(db, viewer.id, id) : false
 	]);
 
 	return {
-		story,
+		story: matureHidden ? { ...story, body: '' } : story,
+		matureHidden,
 		comments,
 		rating,
 		bookmarked,
@@ -56,6 +62,8 @@ export const actions: Actions = {
 	comment: async ({ params, locals, url, request }) => {
 		const user = requireUser(locals.user, url);
 		const body = formString(await request.formData(), 'body');
+		if (!(await underHourlyLimit(db, 'comment', user.id)))
+			return fail(429, { commentBody: body, errors: { body: LIMIT_MESSAGE } });
 		try {
 			const comment = await addComment(db, user.id, paramInt(params.id), body);
 			await deliverSafely(() => notifyComment(db, notify, comment.id));
@@ -83,6 +91,7 @@ export const actions: Actions = {
 		const targetId = formInt(data, 'targetId');
 		const reason = formString(data, 'reason') as ReportReason;
 		if (!targetId || !REPORT_REASONS.includes(reason)) return fail(400);
+		if (!(await underHourlyLimit(db, 'report', user.id))) return fail(429);
 		try {
 			await fileReport(db, user.id, {
 				targetType,

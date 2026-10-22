@@ -37,6 +37,19 @@ export function consoleSender(log: (msg: string) => void = console.log): SendEma
 	return async (email) => log(`\n[email] to ${email.to}: ${email.subject}\n${email.text}\n`);
 }
 
-export function createSender(apiKey: string | undefined, from: string): SendEmail {
-	return apiKey ? resendSender(apiKey, from) : consoleSender();
+/**
+ * Without a Resend key, dev prints emails to the console. Production refuses to send instead:
+ * printing would put working sign-in links in the server logs, and nobody would get their email.
+ */
+export function createSender(
+	apiKey: string | undefined,
+	from: string,
+	opts: { production?: boolean } = {}
+): SendEmail {
+	if (apiKey) return resendSender(apiKey, from);
+	if (opts.production)
+		return async () => {
+			throw new Error('Email is not configured: set RESEND_API_KEY.');
+		};
+	return consoleSender();
 }
