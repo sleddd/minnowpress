@@ -6,6 +6,7 @@ import { challenges, stories, storyTags, tags, users, type Story, type User } fr
 import { ForbiddenError, NotFoundError, ValidationError } from './errors';
 import { assertUnderHourlyLimit } from './limits';
 import { logModeration } from './moderation-log';
+import { syncTagCounts } from './tags';
 
 export type Relation = 'sequel' | 'prequel';
 
@@ -70,15 +71,35 @@ export const authorColumns = {
 	avatarUrl: users.avatarUrl
 };
 
+/** Ids of the tags on a story, for recounting them after the story changes. */
+async function tagIdsOf(db: DB, storyId: number): Promise<number[]> {
+	const rows = await db
+		.select({ tagId: storyTags.tagId })
+		.from(storyTags)
+		.where(eq(storyTags.storyId, storyId));
+	return rows.map((r) => r.tagId);
+}
+
+/** Replaces a story's tags and recounts the old and new ones. */
 async function setTags(db: DB, storyId: number, names: string[]) {
+	const before = await tagIdsOf(db, storyId);
 	await db.delete(storyTags).where(eq(storyTags.storyId, storyId));
-	if (names.length === 0) return;
-	await db
-		.insert(tags)
-		.values(names.map((name) => ({ name })))
-		.onConflictDoNothing();
-	const rows = await db.select().from(tags).where(inArray(tags.name, names));
-	await db.insert(storyTags).values(rows.map((t) => ({ storyId, tagId: t.id })));
+	let after: number[] = [];
+	if (names.length > 0) {
+		await db
+			.insert(tags)
+			.values(names.map((name) => ({ name })))
+			.onConflictDoNothing();
+		const rows = await db.select({ id: tags.id }).from(tags).where(inArray(tags.name, names));
+		after = rows.map((t) => t.id);
+		await db.insert(storyTags).values(after.map((tagId) => ({ storyId, tagId })));
+	}
+	await syncTagCounts(db, [...new Set([...before, ...after])]);
+}
+
+/** Recounts a story's tags after its status or maturity changed. */
+async function recountTags(db: DB, storyId: number) {
+	await syncTagCounts(db, await tagIdsOf(db, storyId));
 }
 
 export async function tagsFor(db: DB, storyIds: number[]): Promise<Map<number, string[]>> {
@@ -230,6 +251,7 @@ export async function publishStory(db: DB, userId: number, storyId: number): Pro
 		.set({ status: 'published', publishedAt: new Date() })
 		.where(eq(stories.id, storyId))
 		.returning();
+	await recountTags(db, storyId);
 	return story;
 }
 
@@ -240,7 +262,9 @@ export async function publishStory(db: DB, userId: number, storyId: number): Pro
  */
 export async function deleteStory(db: DB, userId: number, storyId: number): Promise<void> {
 	await editableStory(db, userId, storyId);
+	const tagIds = await tagIdsOf(db, storyId);
 	await db.delete(stories).where(eq(stories.id, storyId));
+	await syncTagCounts(db, tagIds);
 }
 
 /**
@@ -259,6 +283,7 @@ export async function removeStory(
 		.where(and(eq(stories.id, storyId), ne(stories.status, 'removed')))
 		.returning({ id: stories.id });
 	if (removed.length === 0) return;
+	await recountTags(db, storyId);
 	await logModeration(db, {
 		actorId: moderatorId,
 		action: 'remove_story',
@@ -275,6 +300,7 @@ export async function restoreStory(db: DB, storyId: number, moderatorId: number)
 		.where(and(eq(stories.id, storyId), eq(stories.status, 'removed')))
 		.returning({ id: stories.id });
 	if (restored.length === 0) return;
+	await recountTags(db, storyId);
 	await logModeration(db, {
 		actorId: moderatorId,
 		action: 'restore_story',

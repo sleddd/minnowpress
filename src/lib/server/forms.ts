@@ -40,8 +40,11 @@ export function queryInt(value: string | null | undefined): number | null {
 	return Number.isSafeInteger(n) && n > 0 ? n : null;
 }
 
-/** The deepest page anyone can ask for; a larger offset only costs database reads. */
-export const PAGE_MAX = 10_000;
+/**
+ * The deepest page anyone can ask for. Every row before an offset is a row read, so a crawler
+ * walking page numbers upward costs more the deeper it goes; this keeps the worst page cheap.
+ */
+export const PAGE_MAX = 500;
 
 /** The `?page=` number, from 1 to PAGE_MAX. Anything else is page 1. */
 export function pageParam(value: string | null | undefined): number {

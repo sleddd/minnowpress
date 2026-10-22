@@ -9,14 +9,16 @@ import {
 	challengeFeed,
 	followingFeed,
 	latestFeed,
+	ftsQuery,
 	likePattern,
+	SEARCH_MAX_TERMS,
 	popularFeed,
 	PAGE_SIZE,
 	storySearchFeed,
 	tagFeed
 } from './feeds';
 import { follow } from './social';
-import { createStory, type StoryInput } from './stories';
+import { createStory, deleteStory, updateStory, type StoryInput } from './stories';
 import { PAD, createTestDb, makeUser } from './testing/db';
 
 let db: DB;
@@ -160,17 +162,47 @@ describe('storySearchFeed', () => {
 		expect(ids(await storySearchFeed(db, 'LIGHTHOUSE')).sort()).toEqual([a.id, b.id].sort());
 	});
 
-	it('treats wildcards literally', async () => {
+	it('matches word prefixes, ignores accents, and needs every word', async () => {
+		const a = await createStory(db, alice.id, input({ title: 'Café Owl', body: 'x' + PAD }));
+		await createStory(db, alice.id, input({ title: 'Owl', body: 'no coffee here' + PAD }));
+		await createStory(db, alice.id, input({ title: 'Nothing', body: 'at all' + PAD }));
+		expect(ids(await storySearchFeed(db, 'cafe ow'))).toEqual([a.id]);
+		expect(ids(await storySearchFeed(db, 'owl'))).toHaveLength(2);
+	});
+
+	it('survives FTS5 syntax and finds nothing for punctuation alone', async () => {
 		const a = await createStory(db, alice.id, input({ title: '100% true', body: 'x' + PAD }));
-		await createStory(db, alice.id, input({ title: '100 true', body: 'x' + PAD }));
-		expect(ids(await storySearchFeed(db, '100%'))).toEqual([a.id]);
-		expect(ids(await storySearchFeed(db, '_'))).toEqual([]);
+		for (const q of ['100% true', 'true "', '(true)', 'TRUE', '"100', '100*']) {
+			expect(ids(await storySearchFeed(db, q)), q).toContain(a.id);
+		}
+		expect(await storySearchFeed(db, '%%% ---')).toEqual({ items: [], page: 1, hasMore: false });
+	});
+
+	it('keeps edits and deletions in the index', async () => {
+		const a = await createStory(db, alice.id, input({ title: 'Before', body: 'x' + PAD }));
+		await updateStory(db, alice.id, a.id, input({ title: 'After', body: 'x' + PAD }));
+		expect(ids(await storySearchFeed(db, 'before'))).toEqual([]);
+		expect(ids(await storySearchFeed(db, 'after'))).toEqual([a.id]);
+		await deleteStory(db, alice.id, a.id);
+		expect(ids(await storySearchFeed(db, 'after'))).toEqual([]);
 	});
 });
 
 describe('likePattern', () => {
 	it('escapes LIKE wildcards and backslashes', () => {
 		expect(likePattern('50%_off\\')).toBe('%50\\%\\_off\\\\%');
+	});
+});
+
+describe('ftsQuery', () => {
+	it('quotes each word as a prefix term and drops FTS5 syntax', () => {
+		expect(ftsQuery('Owl "suit')).toBe('"Owl"* "suit"*');
+		expect(ftsQuery('a OR (b) NOT c*')).toBe('"a"* "OR"* "b"* "NOT"* "c"*');
+		expect(ftsQuery('  %%% --- ')).toBeNull();
+		expect(ftsQuery('')).toBeNull();
+		expect(
+			ftsQuery(Array.from({ length: 20 }, (_, i) => `w${i}`).join(' '))?.split(' ')
+		).toHaveLength(SEARCH_MAX_TERMS);
 	});
 });
 

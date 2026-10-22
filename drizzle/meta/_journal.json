@@ -78,6 +78,13 @@
       "when": 1792655337711,
       "tag": "0010_audit_hardening",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1792660794762,
+      "tag": "0011_read_less",
+      "breakpoints": true
     }
   ]
 }
