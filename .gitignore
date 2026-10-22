@@ -30,3 +30,6 @@ e2e.db
 
 # Test output
 coverage
+
+# Local database backups
+*.bak
