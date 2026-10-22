@@ -5,24 +5,41 @@
  */
 import { createClient, type Client, type InValue } from '@libsql/client';
 import { drizzle, type LibSQLDatabase } from 'drizzle-orm/libsql';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { recomputeActivityScores } from './activity';
 import { validateSession } from './auth';
-import { getArchiveAuthor, listArchiveAuthors, listWriters } from './authors';
-import { countEntries, ensureCurrentChallenge, getChallenge, todaysPrompt } from './challenges';
+import {
+	authorsToFollow,
+	getArchiveAuthor,
+	listArchiveAuthors,
+	listFollowing,
+	listWriters
+} from './authors';
+import { listPublishedPosts } from './blog';
+import {
+	countEntries,
+	ensureCurrentChallenge,
+	getChallenge,
+	listChallenges,
+	todaysPrompt
+} from './challenges';
 import * as schema from './db/schema';
 import { archiveAuthors, stories, users } from './db/schema';
+import { recentActivity, storyCounts } from './desk';
 import {
 	activeFeed,
 	archiveAuthorFeed,
 	authorFeed,
+	bookmarksFeed,
+	challengeFeed,
+	followingFeed,
 	latestFeed,
 	popularFeed,
 	tagFeed
 } from './feeds';
 import { searchAll } from './search';
-import { listComments } from './social';
-import { countPublishedStories, getStory } from './stories';
+import { followCounts, listComments } from './social';
+import { countPublishedStories, getChain, getStory, getUserStories } from './stories';
 import { popularTags, tagIndex } from './tags';
 
 type DB = LibSQLDatabase<typeof schema>;
@@ -39,8 +56,12 @@ export interface Measured extends Statement {
 	error?: string;
 }
 
-/** What a page does, as the server functions it calls. Each gets a fresh, logged connection. */
-export const SCENARIOS: Record<string, (db: DB) => Promise<unknown>> = {
+/**
+ * What a page does, as the server functions it calls. `db` is recorded; `pick` is the same
+ * connection unrecorded, for choosing the heaviest real example (biggest chain, busiest
+ * challenge) without that lookup counting against the page.
+ */
+export const SCENARIOS: Record<string, (db: DB, pick: DB) => Promise<unknown>> = {
 	'session check': (db) => validateSession(db, 'not-a-real-token'),
 	home: async (db) => {
 		await ensureCurrentChallenge(db);
@@ -92,20 +113,75 @@ export const SCENARIOS: Record<string, (db: DB) => Promise<unknown>> = {
 		const prompt = await todaysPrompt(db);
 		if (prompt) await getChallenge(db, prompt.id);
 	},
+	'challenge page, most entries': async (db, pick) => {
+		const [busiest] = await pick
+			.select({ id: stories.challengeId, n: sql<number>`count(*)` })
+			.from(stories)
+			.where(sql`${stories.challengeId} is not null and ${stories.status} = 'published'`)
+			.groupBy(stories.challengeId)
+			.orderBy(sql`count(*) desc`)
+			.limit(1);
+		if (!busiest?.id) return;
+		await getChallenge(db, busiest.id);
+		await countEntries(db, busiest.id);
+		await challengeFeed(db, busiest.id);
+	},
+	'challenges list': (db) => listChallenges(db),
+	'chain page, biggest chain': async (db, pick) => {
+		const [biggest] = await pick
+			.select({ id: stories.chainId, n: sql<number>`count(*)` })
+			.from(stories)
+			.where(eq(stories.status, 'published'))
+			.groupBy(stories.chainId)
+			.orderBy(sql`count(*) desc`)
+			.limit(1);
+		if (!biggest?.id) return;
+		await getChain(db, biggest.id);
+	},
+	'member profile, most stories': async (db, pick) => {
+		const member = await pick.query.users.findFirst({
+			where: eq(users.isArchive, false),
+			orderBy: (u, { desc }) => desc(u.publishedCount)
+		});
+		if (!member) return;
+		await authorFeed(db, member.id);
+		await followCounts(db, member.id);
+		await countPublishedStories(db, member.id);
+		await getUserStories(db, member.id, { includeDrafts: true });
+	},
+	'desk, signed in': async (db, pick) => {
+		const member = await pick.query.users.findFirst({
+			where: eq(users.isArchive, false),
+			orderBy: (u, { desc }) => desc(u.publishedCount)
+		});
+		if (!member) return;
+		await listPublishedPosts(db);
+		await recentActivity(db, member.id, 8);
+		await storyCounts(db, member.id);
+		await followingFeed(db, member.id, { pageSize: 5 });
+		await listFollowing(db, member.id);
+		await authorsToFollow(db, { viewerId: member.id, limit: 4 });
+	},
+	'reading list': async (db, pick) => {
+		const member = await pick.query.users.findFirst({ where: eq(users.isArchive, false) });
+		if (member) await bookmarksFeed(db, member.id, { viewer: { id: member.id, showMature: true } });
+	},
+	'blog list': (db) => listPublishedPosts(db),
+	'site feed (feed.xml)': (db) => latestFeed(db),
 	search: (db) => searchAll(db, 'owl')
 };
 
-/** Runs `run` on a connection that records every statement it sends. */
+/** Runs `run` with a connection that records every statement it sends, and one that doesn't. */
 export async function captureStatements(
 	client: Client,
-	run: (db: DB) => Promise<unknown>
+	run: (db: DB, pick: DB) => Promise<unknown>
 ): Promise<Statement[]> {
 	const statements: Statement[] = [];
 	const db = drizzle(client, {
 		schema,
 		logger: { logQuery: (sql, params) => void statements.push({ sql, params }) }
 	});
-	await run(db);
+	await run(db, drizzle(client, { schema }));
 	return statements;
 }
 
