@@ -62,7 +62,7 @@ describe('form helpers', () => {
 		expect(pageParam(null)).toBe(1);
 		expect(pageParam('Infinity')).toBe(1);
 		expect(pageParam(String(PAGE_MAX + 5))).toBe(PAGE_MAX);
-		expect(PAGE_MAX).toBeLessThanOrEqual(1000);
+		expect(PAGE_MAX).toBeLessThanOrEqual(100);
 	});
 
 	it('formBool understands checkbox values', () => {

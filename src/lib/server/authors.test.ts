@@ -4,14 +4,23 @@ import {
 	authorsToFollow,
 	getArchiveAuthor,
 	listArchiveAuthors,
+	refreshAllAuthorCounts,
 	refreshArchiveAuthors,
 	listFollowing,
 	listWriters
 } from './authors';
 import type { DB } from './db/client';
-import { stories } from './db/schema';
+import { stories, users } from './db/schema';
 import { follow } from './social';
-import { createStory } from './stories';
+import {
+	countPublishedStories,
+	createStory,
+	deleteStory,
+	publishStory,
+	removeStory,
+	restoreStory,
+	updateStory
+} from './stories';
 import { PAD, createTestDb, makeUser } from './testing/db';
 
 let db: DB;
@@ -95,7 +104,16 @@ describe('archive authors', () => {
 			},
 			{ name: 'Henjo', href: '/authors/ficly/henjo', stories: 1, avatarUrl: null, archive: true }
 		]);
+		// Search matches the start of a name, in any case; not the middle.
 		expect((await listArchiveAuthors(db, { query: 'hen' })).items.map((a) => a.name)).toEqual([
+			'Henjo'
+		]);
+		expect((await listArchiveAuthors(db, { query: 'HEN' })).items.map((a) => a.name)).toEqual([
+			'Henjo'
+		]);
+		expect((await listArchiveAuthors(db, { query: 'enjo' })).items).toEqual([]);
+		expect((await listArchiveAuthors(db, { query: '  ' })).items.map((a) => a.name)).toEqual([
+			'Kevin Lawver',
 			'Henjo'
 		]);
 		expect(await getArchiveAuthor(db, 'KEVIN-lawver')).toEqual({
@@ -151,5 +169,43 @@ describe('listFollowing', () => {
 			['Bo', '/@bo', 0]
 		]);
 		expect(await listFollowing(db, ana.id)).toEqual([]);
+	});
+});
+
+describe('published story counts', () => {
+	const count = async (id: number) =>
+		(await db.query.users.findFirst({ where: eq(users.id, id) }))!.publishedCount;
+
+	it('follow drafts, publishing, editing, removing, restoring and deleting', async () => {
+		const a = await makeUser(db);
+		const mod = await makeUser(db, { role: 'mod' });
+		const draft = await createStory(db, a.id, { ...input, publish: false });
+		expect(await count(a.id)).toBe(0);
+		await publishStory(db, a.id, draft.id);
+		expect(await count(a.id)).toBe(1);
+		const second = await createStory(db, a.id, input);
+		expect(await count(a.id)).toBe(2);
+		expect(await countPublishedStories(db, a.id)).toBe(2);
+		await removeStory(db, second.id, mod.id);
+		expect(await count(a.id)).toBe(1);
+		await restoreStory(db, second.id, mod.id);
+		expect(await count(a.id)).toBe(2);
+		await deleteStory(db, a.id, second.id);
+		expect(await count(a.id)).toBe(1);
+		// An edit that keeps the story published leaves the count alone; publishing a draft bumps it.
+		const other = await createStory(db, a.id, { ...input, publish: false });
+		await updateStory(db, a.id, other.id, { ...input, publish: true });
+		expect(await count(a.id)).toBe(2);
+		await updateStory(db, a.id, other.id, { ...input, title: 'Renamed', publish: true });
+		expect(await count(a.id)).toBe(2);
+		expect(await countPublishedStories(db, 9999)).toBe(0);
+	});
+
+	it('can be rebuilt from scratch', async () => {
+		const a = await makeUser(db);
+		await createStory(db, a.id, input);
+		await db.update(users).set({ publishedCount: 99 });
+		await refreshAllAuthorCounts(db);
+		expect(await count(a.id)).toBe(1);
 	});
 });

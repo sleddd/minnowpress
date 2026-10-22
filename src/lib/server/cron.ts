@@ -1,7 +1,7 @@
 import { createHash, timingSafeEqual } from 'node:crypto';
 import { json } from '@sveltejs/kit';
 import { sql } from 'drizzle-orm';
-import { refreshArchiveAuthors } from './authors';
+import { refreshAllAuthorCounts, refreshArchiveAuthors } from './authors';
 import { ensureCurrentChallenge } from './challenges';
 import type { DB } from './db/client';
 import { sendWeeklyDigests, type NotifyContext } from './notifications';
@@ -52,6 +52,7 @@ export async function runPromptCron(db: DB, client: PromptClient | null, now = n
  */
 export async function runActivityCron(db: DB) {
 	await refreshAllTagCounts(db);
+	await refreshAllAuthorCounts(db);
 	await refreshArchiveAuthors(db);
 	await db.run(sql`analyze`);
 	return json({ ok: true });

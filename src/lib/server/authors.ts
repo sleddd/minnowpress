@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, notInArray, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, inArray, notInArray, sql } from 'drizzle-orm';
 import { archiveAuthorPath, ficlyAuthorUrl } from '#lib/archive.ts';
 import type { DB } from './db/client';
 import { archiveAuthors, follows, stories, users } from './db/schema';
@@ -17,7 +17,18 @@ export interface AuthorEntry {
 	username?: string | null;
 }
 
-const storyCount = count(stories.id);
+const publishedCount = sql`(select count(*) from ${stories} where ${stories.authorId} = ${users.id} and ${stories.status} = 'published')`;
+
+/** Recounts these members' published stories. Called whenever a story's status changes. */
+export async function syncAuthorCounts(db: DB, userIds: number[]): Promise<void> {
+	if (userIds.length === 0) return;
+	await db.update(users).set({ publishedCount }).where(inArray(users.id, userIds));
+}
+
+/** Recounts every member. The nightly job runs this as a safety net; the import runs it once. */
+export async function refreshAllAuthorCounts(db: DB): Promise<void> {
+	await db.update(users).set({ publishedCount });
+}
 
 /** Members with at least one published story, most prolific first. */
 export async function listWriters(
@@ -26,7 +37,7 @@ export async function listWriters(
 ): Promise<{ items: AuthorEntry[]; hasMore: boolean }> {
 	const size = opts.pageSize ?? AUTHORS_PAGE_SIZE;
 	const page = Math.max(1, opts.page ?? 1);
-	const conditions = [eq(users.isArchive, false), eq(stories.status, 'published')];
+	const conditions = [eq(users.isArchive, false), gt(users.publishedCount, 0)];
 	if (opts.exclude?.length) conditions.push(notInArray(users.id, opts.exclude));
 	if (opts.query) {
 		const pattern = likePattern(opts.query);
@@ -39,13 +50,11 @@ export async function listWriters(
 			username: users.username,
 			displayName: users.displayName,
 			avatarUrl: users.avatarUrl,
-			stories: storyCount
+			stories: users.publishedCount
 		})
 		.from(users)
-		.innerJoin(stories, eq(stories.authorId, users.id))
 		.where(and(...conditions))
-		.groupBy(users.id)
-		.orderBy(desc(storyCount), users.displayName)
+		.orderBy(desc(users.publishedCount), users.displayName)
 		.limit(size + 1)
 		.offset((page - 1) * size);
 	return {
@@ -69,32 +78,47 @@ export async function listWriters(
 export async function refreshArchiveAuthors(db: DB): Promise<void> {
 	await db.delete(archiveAuthors);
 	await db.run(sql`
-		insert into ${archiveAuthors} (url, name, stories, first_published_at, last_published_at)
+		insert into ${archiveAuthors} (url, name, name_key, stories, first_published_at, last_published_at)
 		select ${stories.archiveAuthorUrl}, coalesce(min(${stories.archiveAuthor}), 'Unknown'),
+			lower(coalesce(min(${stories.archiveAuthor}), 'Unknown')),
 			count(*), min(${stories.publishedAt}), max(${stories.publishedAt})
 		from ${stories}
 		where ${stories.archiveAuthorUrl} is not null and ${stories.status} = 'published'
 		group by ${stories.archiveAuthorUrl}`);
 }
 
-/** Authors from the Ficly archive, most prolific first. */
+/**
+ * Authors from the Ficly archive, most prolific first. With a query, those whose name starts
+ * with it, matched case-insensitively as a range on the name_key index (INDEXED BY, since the
+ * planner otherwise walks every author in story order looking for matches).
+ */
 export async function listArchiveAuthors(
 	db: DB,
 	opts: { page?: number; pageSize?: number; query?: string } = {}
 ): Promise<{ items: AuthorEntry[]; hasMore: boolean }> {
 	const size = opts.pageSize ?? AUTHORS_PAGE_SIZE;
 	const page = Math.max(1, opts.page ?? 1);
-	const rows = await db
-		.select({ name: archiveAuthors.name, url: archiveAuthors.url, stories: archiveAuthors.stories })
-		.from(archiveAuthors)
-		.where(
-			opts.query
-				? sql`${archiveAuthors.name} like ${likePattern(opts.query)} escape '\\'`
-				: undefined
-		)
-		.orderBy(desc(archiveAuthors.stories), asc(archiveAuthors.name))
-		.limit(size + 1)
-		.offset((page - 1) * size);
+	const limit = size + 1;
+	const offset = (page - 1) * size;
+	type Row = { name: string; url: string; stories: number };
+	const query = opts.query?.trim();
+	const rows: Row[] = query
+		? await db.all<Row>(
+				sql`select ${archiveAuthors.name} as name, ${archiveAuthors.url} as url, ${archiveAuthors.stories} as stories
+					from ${archiveAuthors} indexed by archive_authors_name_key_idx
+					where ${archiveAuthors.nameKey} >= lower(${query}) and ${archiveAuthors.nameKey} < lower(${query}) || char(65535)
+					order by ${archiveAuthors.stories} desc, ${archiveAuthors.name} asc limit ${limit} offset ${offset}`
+			)
+		: await db
+				.select({
+					name: archiveAuthors.name,
+					url: archiveAuthors.url,
+					stories: archiveAuthors.stories
+				})
+				.from(archiveAuthors)
+				.orderBy(desc(archiveAuthors.stories), asc(archiveAuthors.name))
+				.limit(limit)
+				.offset(offset);
 	return {
 		items: rows.slice(0, size).flatMap((r) => {
 			const href = archiveAuthorPath(r.url);
@@ -146,13 +170,12 @@ export async function authorsToFollow(
 
 /** The members a user follows, most recently followed first, with their published story counts. */
 export async function listFollowing(db: DB, userId: number): Promise<AuthorEntry[]> {
-	const published = sql<number>`(select count(*) from stories s where s.author_id = ${users.id} and s.status = 'published')`;
 	const rows = await db
 		.select({
 			username: users.username,
 			displayName: users.displayName,
 			avatarUrl: users.avatarUrl,
-			stories: published
+			stories: users.publishedCount
 		})
 		.from(follows)
 		.innerJoin(users, eq(users.id, follows.followeeId))

@@ -10,7 +10,7 @@ import {
 	restoreStory,
 	updateStory
 } from './stories';
-import { popularTags, refreshAllTagCounts, tagIndex, TAGS_PAGE_SIZE } from './tags';
+import { popularTags, refreshAllTagCounts, tagIndex, tagPrefix, TAGS_PAGE_SIZE } from './tags';
 import { PAD, createTestDb, makeUser } from './testing/db';
 
 let db: DB;
@@ -47,6 +47,19 @@ describe('tagIndex', () => {
 		expect(all.items.map((t) => t.name).sort()).toEqual(['horror', 'sea']);
 		expect(all.hasMore).toBe(false);
 		expect((await tagIndex(db, { query: 'hor' })).items).toEqual([{ name: 'horror', count: 1 }]);
+		// Prefix matches, folded like tag names; the middle of a word doesn't match.
+		await story(['sea-side']);
+		expect((await tagIndex(db, { query: 'Sea Side' })).items.map((t) => t.name)).toEqual([
+			'sea-side'
+		]);
+		expect((await tagIndex(db, { query: 'se' })).items.map((t) => t.name)).toEqual([
+			'sea',
+			'sea-side'
+		]);
+		expect((await tagIndex(db, { query: 'ror' })).items).toEqual([]);
+		expect((await tagIndex(db, { query: '%%%' })).items).toEqual([]);
+		expect(tagPrefix('%%%')).toBeNull();
+		expect(tagPrefix('Sea Side')).toBe('sea-side');
 		expect((await tagIndex(db, { page: 0 })).page).toBe(1);
 		expect(TAGS_PAGE_SIZE).toBeGreaterThan(50);
 	});

@@ -1,9 +1,10 @@
-import { and, asc, count, desc, eq, inArray, ne } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, ne } from 'drizzle-orm';
 import { averageRating } from '#lib/rating.ts';
 import { normalizeBody, validateStoryInput } from '#lib/text.ts';
 import type { DB } from './db/client';
 import { challenges, stories, storyTags, tags, users, type Story, type User } from './db/schema';
 import { ForbiddenError, NotFoundError, ValidationError } from './errors';
+import { syncAuthorCounts } from './authors';
 import { assertUnderHourlyLimit } from './limits';
 import { logModeration } from './moderation-log';
 import { syncTagCounts } from './tags';
@@ -97,9 +98,10 @@ async function setTags(db: DB, storyId: number, names: string[]) {
 	await syncTagCounts(db, [...new Set([...before, ...after])]);
 }
 
-/** Recounts a story's tags after its status or maturity changed. */
-async function recountTags(db: DB, storyId: number) {
-	await syncTagCounts(db, await tagIdsOf(db, storyId));
+/** Recounts a story's tags and its author's stories after its status or maturity changed. */
+async function recount(db: DB, story: { id: number; authorId: number }) {
+	await syncTagCounts(db, await tagIdsOf(db, story.id));
+	await syncAuthorCounts(db, [story.authorId]);
 }
 
 export async function tagsFor(db: DB, storyIds: number[]): Promise<Map<number, string[]>> {
@@ -178,6 +180,7 @@ export async function createStory(
 		story.chainId = story.id;
 	}
 	await setTags(db, story.id, input.tags);
+	if (story.status === 'published') await syncAuthorCounts(db, [authorId]);
 	return story;
 }
 
@@ -241,6 +244,7 @@ export async function updateStory(
 		.where(eq(stories.id, storyId))
 		.returning();
 	await setTags(db, storyId, input.tags);
+	if (story.status !== existing.status) await syncAuthorCounts(db, [userId]);
 	return story;
 }
 
@@ -251,7 +255,7 @@ export async function publishStory(db: DB, userId: number, storyId: number): Pro
 		.set({ status: 'published', publishedAt: new Date() })
 		.where(eq(stories.id, storyId))
 		.returning();
-	await recountTags(db, storyId);
+	await recount(db, story);
 	return story;
 }
 
@@ -265,6 +269,7 @@ export async function deleteStory(db: DB, userId: number, storyId: number): Prom
 	const tagIds = await tagIdsOf(db, storyId);
 	await db.delete(stories).where(eq(stories.id, storyId));
 	await syncTagCounts(db, tagIds);
+	await syncAuthorCounts(db, [userId]);
 }
 
 /**
@@ -281,9 +286,9 @@ export async function removeStory(
 		.update(stories)
 		.set({ status: 'removed' })
 		.where(and(eq(stories.id, storyId), ne(stories.status, 'removed')))
-		.returning({ id: stories.id });
+		.returning({ id: stories.id, authorId: stories.authorId });
 	if (removed.length === 0) return;
-	await recountTags(db, storyId);
+	await recount(db, removed[0]);
 	await logModeration(db, {
 		actorId: moderatorId,
 		action: 'remove_story',
@@ -298,9 +303,9 @@ export async function restoreStory(db: DB, storyId: number, moderatorId: number)
 		.update(stories)
 		.set({ status: 'published' })
 		.where(and(eq(stories.id, storyId), eq(stories.status, 'removed')))
-		.returning({ id: stories.id });
+		.returning({ id: stories.id, authorId: stories.authorId });
 	if (restored.length === 0) return;
-	await recountTags(db, storyId);
+	await recount(db, restored[0]);
 	await logModeration(db, {
 		actorId: moderatorId,
 		action: 'restore_story',
@@ -381,12 +386,13 @@ export function getChain(db: DB, chainId: number) {
 	return storySummaries(db, and(eq(stories.chainId, chainId), eq(stories.status, 'published')));
 }
 
+/** From users.published_count, which syncAuthorCounts keeps in step; never a count over the archive. */
 export async function countPublishedStories(db: DB, authorId: number): Promise<number> {
-	const [{ n }] = await db
-		.select({ n: count() })
-		.from(stories)
-		.where(and(eq(stories.authorId, authorId), eq(stories.status, 'published')));
-	return n;
+	const row = await db.query.users.findFirst({
+		columns: { publishedCount: true },
+		where: eq(users.id, authorId)
+	});
+	return row?.publishedCount ?? 0;
 }
 
 export async function getUserStories(
