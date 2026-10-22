@@ -21,7 +21,7 @@ describe('popularTags', () => {
 		await story(['horror'], { isMature: true });
 		await story(['draft-only'], { publish: false });
 		const removed = await story(['gone']);
-		await removeStory(db, removed.id);
+		await removeStory(db, removed.id, author.id);
 		expect(await popularTags(db)).toEqual([
 			{ name: 'sea', count: 2 },
 			{ name: 'ghosts', count: 1 }

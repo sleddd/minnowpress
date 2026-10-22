@@ -30,6 +30,7 @@ describe('CSP_DIRECTIVES', () => {
 		expect(CSP_DIRECTIVES['script-src']).toEqual(['self']);
 		expect(CSP_DIRECTIVES['style-src']).toEqual(['self']);
 		expect(CSP_DIRECTIVES['connect-src']).toEqual(['self']);
+		expect(CSP_DIRECTIVES['img-src']).toEqual(['self', 'data:']);
 		expect(CSP_DIRECTIVES['frame-ancestors']).toEqual(['none']);
 		expect(CSP_DIRECTIVES['object-src']).toEqual(['none']);
 	});

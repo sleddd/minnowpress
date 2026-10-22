@@ -51,8 +51,16 @@ describe('readJson', () => {
 		});
 	});
 
-	it('rejects invalid JSON and bodies without a response', async () => {
-		expect(isHttpError(await caught(() => readJson(req('nope'))), 400)).toBe(true);
-		expect(isHttpError(await caught(() => readJson(req('{"name":"x"}'))), 400)).toBe(true);
+	it('rejects invalid JSON and bodies without a usable response', async () => {
+		for (const body of [
+			'nope',
+			'{"name":"x"}',
+			'{"response":null}',
+			'{"response":"abc"}',
+			'{"response":{}}',
+			'{"response":{"id":5}}',
+			'[]'
+		])
+			expect(isHttpError(await caught(() => readJson(req(body))), 400), body).toBe(true);
 	});
 });

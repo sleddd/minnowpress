@@ -1,6 +1,7 @@
 import { error } from '@sveltejs/kit';
 import { getArchiveAuthor } from '#lib/server/authors.ts';
 import { db } from '#lib/server/db/index.ts';
+import { pageParam } from '#lib/server/forms.ts';
 import { archiveAuthorFeed } from '#lib/server/feeds.ts';
 import type { PageServerLoad } from './$types';
 
@@ -9,7 +10,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 	if (!author) error(404, 'Author not found');
 	const feed = await archiveAuthorFeed(db, author.url, {
 		viewer: locals.user,
-		page: Number(url.searchParams.get('page')) || 1
+		page: pageParam(url.searchParams.get('page'))
 	});
 	return { author, feed };
 };

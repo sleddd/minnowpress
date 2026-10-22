@@ -3,6 +3,8 @@ import { normalizeBody, validateComment } from '#lib/text.ts';
 import type { DB } from './db/client';
 import { comments, follows, stories, users } from './db/schema';
 import { ForbiddenError, NotFoundError, ValidationError } from './errors';
+import { assertUnderHourlyLimit } from './limits';
+import { logModeration } from './moderation-log';
 import { authorColumns } from './stories';
 
 async function publishedStory(db: DB, storyId: number) {
@@ -60,22 +62,39 @@ export async function addComment(db: DB, authorId: number, storyId: number, body
 		.insert(comments)
 		.values({ storyId, authorId, body: normalizeBody(body) })
 		.returning();
+	try {
+		await assertUnderHourlyLimit(db, 'comment', authorId);
+	} catch (e) {
+		await db.delete(comments).where(eq(comments.id, comment.id));
+		throw e;
+	}
 	await syncCommentCount(db, storyId);
 	return comment;
 }
 
-/** Soft-deletes a comment. Allowed for its author, or a moderator. */
+/**
+ * Soft-deletes a comment. Allowed for its author, or a moderator; a moderator deleting someone
+ * else's comment is logged, with the report it answers if there is one.
+ */
 export async function deleteComment(
 	db: DB,
 	userId: number,
 	commentId: number,
-	opts: { asModerator?: boolean } = {}
+	opts: { asModerator?: boolean; reportId?: number | null } = {}
 ): Promise<void> {
 	const comment = await db.query.comments.findFirst({ where: eq(comments.id, commentId) });
 	if (!comment || comment.deletedAt) throw new NotFoundError('Comment not found');
 	if (comment.authorId !== userId && !opts.asModerator) throw new ForbiddenError();
 	await db.update(comments).set({ deletedAt: new Date() }).where(eq(comments.id, commentId));
 	await syncCommentCount(db, comment.storyId);
+	if (opts.asModerator && comment.authorId !== userId)
+		await logModeration(db, {
+			actorId: userId,
+			action: 'delete_comment',
+			targetType: 'comment',
+			targetId: commentId,
+			reportId: opts.reportId
+		});
 }
 
 export function listComments(db: DB, storyId: number) {

@@ -34,9 +34,15 @@ export const RESERVED_USERNAMES = new Set([
 
 const segmenter = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
 
-/** Counts user-perceived characters, so an emoji or an accented letter counts as one. */
-export function countGraphemes(text: string): number {
-	return [...segmenter.segment(text)].length;
+/**
+ * Counts user-perceived characters, so an emoji or an accented letter counts as one. Counting
+ * stops at `limit + 1`, so checking a huge submission costs no more than checking one just over.
+ */
+export function countGraphemes(text: string, limit = Infinity): number {
+	const graphemes = segmenter.segment(text)[Symbol.iterator]();
+	let n = 0;
+	while (n <= limit && !graphemes.next().done) n++;
+	return n;
 }
 
 export function normalizeBody(text: string): string {
@@ -46,21 +52,22 @@ export function normalizeBody(text: string): string {
 export type FieldErrors = Partial<Record<'title' | 'body' | 'tags', string>>;
 
 export function validateStoryBody(body: string): string | undefined {
-	const length = countGraphemes(normalizeBody(body));
+	const length = countGraphemes(normalizeBody(body), STORY_MAX);
 	if (length === 0) return 'Write something first.';
 	if (length < STORY_MIN)
 		return `Stories need at least ${STORY_MIN} characters (this is ${length}).`;
-	if (length > STORY_MAX) return `Stories are ${STORY_MAX} characters or less (this is ${length}).`;
+	if (length > STORY_MAX)
+		return `Stories are ${STORY_MAX} characters or less (this is ${length} or more).`;
 }
 
 export function validateTitle(title: string): string | undefined {
-	const length = countGraphemes(title.trim());
+	const length = countGraphemes(title.trim(), TITLE_MAX);
 	if (length === 0) return 'Give it a title.';
 	if (length > TITLE_MAX) return `Titles are ${TITLE_MAX} characters or less.`;
 }
 
 export function validateComment(body: string): string | undefined {
-	const length = countGraphemes(normalizeBody(body));
+	const length = countGraphemes(normalizeBody(body), COMMENT_MAX);
 	if (length === 0) return 'Comment is empty.';
 	if (length > COMMENT_MAX) return `Comments are ${COMMENT_MAX} characters or less.`;
 }

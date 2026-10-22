@@ -30,8 +30,8 @@ export function slugify(title: string): string {
 
 function validate(input: PostInput) {
 	const errors: Record<string, string> = {};
-	const title = countGraphemes(input.title.trim());
-	const body = countGraphemes(input.body.trim());
+	const title = countGraphemes(input.title.trim(), BLOG_TITLE_MAX);
+	const body = countGraphemes(input.body.trim(), BLOG_BODY_MAX);
 	if (title === 0) errors.title = 'Give the post a title.';
 	else if (title > BLOG_TITLE_MAX)
 		errors.title = `Titles are ${BLOG_TITLE_MAX} characters or less.`;

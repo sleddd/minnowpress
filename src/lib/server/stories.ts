@@ -1,9 +1,11 @@
-import { and, asc, count, desc, eq, inArray } from 'drizzle-orm';
+import { and, asc, count, desc, eq, inArray, ne } from 'drizzle-orm';
 import { averageRating } from '#lib/rating.ts';
 import { normalizeBody, validateStoryInput } from '#lib/text.ts';
 import type { DB } from './db/client';
 import { challenges, stories, storyTags, tags, users, type Story, type User } from './db/schema';
 import { ForbiddenError, NotFoundError, ValidationError } from './errors';
+import { assertUnderHourlyLimit } from './limits';
+import { logModeration } from './moderation-log';
 
 export type Relation = 'sequel' | 'prequel';
 
@@ -143,6 +145,12 @@ export async function createStory(
 			publishedAt: input.publish ? now : null
 		})
 		.returning();
+	try {
+		await assertUnderHourlyLimit(db, 'story', authorId, now);
+	} catch (e) {
+		await db.delete(stories).where(eq(stories.id, story.id));
+		throw e;
+	}
 
 	if (chainId === null) {
 		await db.update(stories).set({ chainId: story.id }).where(eq(stories.id, story.id));
@@ -235,16 +243,44 @@ export async function deleteStory(db: DB, userId: number, storyId: number): Prom
 	await db.delete(stories).where(eq(stories.id, storyId));
 }
 
-/** Moderator action. The row stays so chains keep their shape; it is hidden everywhere. */
-export async function removeStory(db: DB, storyId: number): Promise<void> {
-	await db.update(stories).set({ status: 'removed' }).where(eq(stories.id, storyId));
+/**
+ * Moderator action, logged with who did it. The row stays so chains keep their shape; it is
+ * hidden everywhere.
+ */
+export async function removeStory(
+	db: DB,
+	storyId: number,
+	moderatorId: number,
+	opts: { reportId?: number | null } = {}
+): Promise<void> {
+	const removed = await db
+		.update(stories)
+		.set({ status: 'removed' })
+		.where(and(eq(stories.id, storyId), ne(stories.status, 'removed')))
+		.returning({ id: stories.id });
+	if (removed.length === 0) return;
+	await logModeration(db, {
+		actorId: moderatorId,
+		action: 'remove_story',
+		targetType: 'story',
+		targetId: storyId,
+		reportId: opts.reportId
+	});
 }
 
-export async function restoreStory(db: DB, storyId: number): Promise<void> {
-	await db
+export async function restoreStory(db: DB, storyId: number, moderatorId: number): Promise<void> {
+	const restored = await db
 		.update(stories)
 		.set({ status: 'published' })
-		.where(and(eq(stories.id, storyId), eq(stories.status, 'removed')));
+		.where(and(eq(stories.id, storyId), eq(stories.status, 'removed')))
+		.returning({ id: stories.id });
+	if (restored.length === 0) return;
+	await logModeration(db, {
+		actorId: moderatorId,
+		action: 'restore_story',
+		targetType: 'story',
+		targetId: storyId
+	});
 }
 
 async function storySummaries(

@@ -10,6 +10,9 @@ import {
 	normalizeEmail,
 	normalizeWebsite,
 	suggestUsername,
+	usernameTaken,
+	USERNAME_HOLD_DAYS,
+	EMAIL_MAX,
 	updateNotifications,
 	updateTheme,
 	updateProfile,
@@ -27,6 +30,8 @@ describe('email helpers', () => {
 		expect(isValidEmail('jane@example.com')).toBe(true);
 		expect(isValidEmail('jane@localhost')).toBe(false);
 		expect(isValidEmail('not an email')).toBe(false);
+		expect(isValidEmail(`${'a'.repeat(EMAIL_MAX - 12)}@example.com`)).toBe(true);
+		expect(isValidEmail(`${'a'.repeat(EMAIL_MAX)}@example.com`)).toBe(false);
 	});
 });
 
@@ -141,6 +146,48 @@ describe('updateProfile', () => {
 			profile({ username: 'no spaces', displayName: 'x'.repeat(51) })
 		).catch((e) => e);
 		expect(Object.keys(err.fields).sort()).toEqual(['displayName', 'username']);
+	});
+});
+
+describe('username hold', () => {
+	const DAY = 24 * 60 * 60 * 1000;
+	const now = new Date('2026-10-22T12:00:00Z');
+	const profile = (username: string): ProfileInput => ({
+		username,
+		displayName: 'Jane',
+		bio: '',
+		website: '',
+		showMature: false
+	});
+
+	it('keeps a given-up name off the market for a while', async () => {
+		const jane = await makeUser(db, { username: 'jane' });
+		const other = await makeUser(db);
+		const renamed = await updateProfile(db, jane.id, profile('janet'), now);
+		expect(renamed).toMatchObject({
+			username: 'janet',
+			formerUsername: 'jane',
+			usernameChangedAt: now
+		});
+		// Nobody else can take it yet, and sign-up won't suggest it.
+		const err = await updateProfile(db, other.id, profile('jane'), now).catch((e) => e);
+		expect(err).toBeInstanceOf(ValidationError);
+		expect(err.fields.username).toBe('That username is taken.');
+		expect(await suggestUsername(db, 'jane@example.com')).toBe('jane2');
+		// Jane can take her own old name back.
+		expect((await updateProfile(db, jane.id, profile('jane'), now)).username).toBe('jane');
+		await updateProfile(db, jane.id, profile('janet'), now);
+		// After the hold, it's free.
+		const later = new Date(now.getTime() + (USERNAME_HOLD_DAYS + 1) * DAY);
+		expect(await usernameTaken(db, 'jane', { now: later })).toBe(false);
+		expect((await updateProfile(db, other.id, profile('jane'), later)).username).toBe('jane');
+	});
+
+	it('does not record a rename when the name is unchanged', async () => {
+		const jane = await makeUser(db, { username: 'jane' });
+		const same = await updateProfile(db, jane.id, profile('Jane'), now);
+		expect(same.formerUsername).toBeNull();
+		expect(same.usernameChangedAt).toBeNull();
 	});
 });
 

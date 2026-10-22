@@ -72,7 +72,7 @@ The UI follows **strict atomic design** in `src/lib/components/`: atoms → mole
 
 ### Server code
 
-Business logic lives in `src/lib/server/` as plain functions that take the database as their first argument (`stories`, `ratings`, `challenges`, `feeds`, `moderation`, `auth`, `passkeys` and so on). Route files stay thin: read the form, call a function, show the result. Tests run against an in-memory database with the real migrations.
+Business logic lives in `src/lib/server/` as plain functions that take the database as their first argument (`stories`, `ratings`, `challenges`, `feeds`, `moderation`, `moderation-log`, `auth`, `passkeys` and so on). Route files stay thin: read the form, call a function, show the result. Tests run against an in-memory database with the real migrations.
 
 ### Tests
 

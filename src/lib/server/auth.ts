@@ -36,7 +36,11 @@ export const LOGIN_LIMITS = {
 	perEmail: 10
 };
 
-/** Records a sign-in link request if it's within the limits; returns false when it isn't. */
+/**
+ * Records a sign-in link request and says whether it's within the limits. The request is
+ * recorded before it's counted, so a burst of parallel requests each sees the others and can't
+ * slip under a limit they would each have passed alone. A refused request still counts.
+ */
 export async function allowLoginRequest(
 	db: DB,
 	request: { email: string; ip: string },
@@ -44,6 +48,7 @@ export async function allowLoginRequest(
 ): Promise<boolean> {
 	const hourAgo = new Date(now.getTime() - HOUR);
 	await db.delete(loginRequests).where(lt(loginRequests.createdAt, hourAgo));
+	await db.insert(loginRequests).values({ ...request, createdAt: now });
 	const recent = (where: Parameters<typeof and>[0], since: Date) =>
 		db
 			.select({ n: count() })
@@ -58,14 +63,11 @@ export async function allowLoginRequest(
 		recent(eq(loginRequests.ip, request.ip), hourAgo),
 		recent(eq(loginRequests.email, request.email), hourAgo)
 	]);
-	if (
-		both >= LOGIN_LIMITS.perAddressAndEmail ||
-		address >= LOGIN_LIMITS.perAddress ||
-		email >= LOGIN_LIMITS.perEmail
-	)
-		return false;
-	await db.insert(loginRequests).values({ ...request, createdAt: now });
-	return true;
+	return (
+		both <= LOGIN_LIMITS.perAddressAndEmail &&
+		address <= LOGIN_LIMITS.perAddress &&
+		email <= LOGIN_LIMITS.perEmail
+	);
 }
 
 /** Stores a hashed one-time login token for the email and returns the raw token for the link. */
