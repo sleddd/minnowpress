@@ -38,15 +38,15 @@
 			.join(' – ');
 </script>
 
+<!-- One title per cell, with its dates and entries underneath; the prompt is on its page. -->
 {#snippet row(c: ChallengeView, note: string)}
-	<li class="row">
-		<div class="what">
-			<Link href="/challenges/{c.id}" variant="story">{c.title}</Link>
-			<p class="row-prompt">{c.promptText}</p>
-			{#if c.archiveUrl}<Text size="sm" tone="muted">From the Ficly archive</Text>{/if}
-		</div>
-		<span class="dates">{note}</span>
-		<span class="entries">{pluralize(c.entries ?? 0, 'entry', 'entries')}</span>
+	<li class="cell">
+		<Link href="/challenges/{c.id}" variant="story">{c.title}</Link>
+		<span class="meta"
+			>{#if note}{note}&nbsp;·&nbsp;{/if}<span class="entries"
+				>{pluralize(c.entries ?? 0, 'entry', 'entries')}</span
+			>{#if c.archiveUrl}&nbsp;·&nbsp;Ficly{/if}</span
+		>
 	</li>
 {/snippet}
 
@@ -100,7 +100,7 @@
 					<Heading level={2} size="lg" id="upcoming-title">Coming up</Heading>
 					<span class="note">Approved, waiting their turn.</span>
 				</div>
-				<ul role="list">
+				<ul class="grid" role="list">
 					{#each upcoming as c (c.id)}
 						{@render row(c, c.startsAt ? `Starts ${formatDate(c.startsAt)}` : '')}
 					{/each}
@@ -115,7 +115,7 @@
 			<span class="note">Closed, but still worth reading.</span>
 		</div>
 		{#if closed.length}
-			<ul role="list">
+			<ul class="grid" role="list">
 				{#each closed as c (c.id)}{@render row(c, range(c))}{/each}
 			</ul>
 		{:else}
@@ -214,20 +214,12 @@
 		text-decoration: underline;
 	}
 
-	/* Prompts are shown whole, wrapped as written: no clipping, and no word too long to wrap. */
-	.prompt,
-	.row-prompt {
+	/* The open challenge's prompt, whole and wrapped as written; past ones list by title only. */
+	.prompt {
 		max-width: var(--measure);
+		font-size: var(--text-lg);
 		white-space: pre-line;
 		overflow-wrap: anywhere;
-	}
-
-	.prompt {
-		font-size: var(--text-lg);
-	}
-
-	.row-prompt {
-		font-size: var(--text-sm);
 	}
 
 	.facts {
@@ -274,7 +266,7 @@
 		color: var(--color-accent);
 	}
 
-	/* Past and upcoming: rows between dashed rules, dates and entries on the right. */
+	/* Past and upcoming: titles in columns (one on phones, two on tablets, three on desktops). */
 	.list {
 		display: grid;
 		gap: var(--space-4);
@@ -294,49 +286,52 @@
 		font-style: italic;
 	}
 
-	.row {
+	.grid {
 		display: grid;
-		grid-template-columns: minmax(0, 1fr) auto auto;
-		gap: var(--space-2) var(--space-8);
-		align-items: baseline;
-		padding-block: var(--space-4);
-		border-bottom: var(--border-width) dashed var(--color-border-strong);
+		grid-template-columns: minmax(0, 1fr);
+		gap: var(--space-0) var(--space-6);
 	}
 
-	.what {
+	@media (min-width: 40rem) {
+		.grid {
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+		}
+	}
+
+	@media (min-width: 64rem) {
+		.grid {
+			grid-template-columns: repeat(3, minmax(0, 1fr));
+		}
+	}
+
+	.cell {
 		display: grid;
 		gap: var(--space-1);
+		align-content: start;
 		min-width: 0;
+		padding-block: var(--space-3);
+		border-bottom: var(--border-width) dashed var(--color-border-strong);
+		overflow-wrap: anywhere;
 	}
 
-	.what :global(a) {
-		font-size: var(--text-xl);
+	.cell :global(a) {
+		font-size: var(--text-lg);
 	}
 
-	.dates {
+	.meta {
 		color: var(--color-text-muted);
 		font-size: var(--text-sm);
-		white-space: nowrap;
 	}
 
 	.entries {
 		color: var(--color-accent);
 		font-style: italic;
-		white-space: nowrap;
 	}
 
 	@media (max-width: 40rem) {
 		.open {
 			flex-direction: column-reverse;
 			padding-inline: var(--space-5);
-		}
-
-		.row {
-			grid-template-columns: minmax(0, 1fr) auto;
-		}
-
-		.dates {
-			grid-row: 2;
 		}
 	}
 </style>
