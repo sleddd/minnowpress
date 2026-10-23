@@ -29,5 +29,7 @@ describe('Text', () => {
 		const p = screen.container.querySelector('p')!;
 		expect(p.classList.contains('muted')).toBe(true);
 		expect(p.classList.contains('lg')).toBe(true);
+		await screen.rerender({ size: 'xs' });
+		expect(p.classList.contains('xs')).toBe(true);
 	});
 });

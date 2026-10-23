@@ -29,4 +29,19 @@ describe('AuthorListItem', () => {
 		await expect.element(screen.getByText('1 story · Ficly archive')).toBeInTheDocument();
 		expect(screen.container.querySelector('img')).not.toBeNull();
 	});
+
+	it('drops the archive note in compact directory style', async () => {
+		const screen = await render(AuthorListItem, {
+			author: {
+				name: 'THX 0477',
+				href: '/authors/ficly/thx-0477',
+				stories: 552,
+				avatarUrl: null,
+				archive: true
+			},
+			compact: true
+		});
+		await expect.element(screen.getByText('552 stories', { exact: true })).toBeInTheDocument();
+		expect(screen.container.querySelector('.author.compact')).not.toBeNull();
+	});
 });

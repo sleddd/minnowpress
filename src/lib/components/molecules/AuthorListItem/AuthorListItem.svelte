@@ -5,17 +5,22 @@
 
 	interface Props {
 		author: AuthorEntryView;
+		/**
+		 * Directory style: a smaller name over the bare story count, for a grid under a heading
+		 * that already says where its writers come from.
+		 */
+		compact?: boolean;
 	}
 
-	let { author }: Props = $props();
+	let { author, compact = false }: Props = $props();
 </script>
 
-<div class="author">
+<div class="author" class:compact>
 	<Avatar name={author.name} src={author.avatarUrl} size="lg" />
 	<div class="text">
 		<Link href={author.href}>{author.name}</Link>
-		<Text as="span" size="sm" tone="muted"
-			>{pluralize(author.stories, 'story', 'stories')}{author.archive
+		<Text as="span" size={compact ? 'xs' : 'sm'} tone="muted"
+			>{pluralize(author.stories, 'story', 'stories')}{author.archive && !compact
 				? ' · Ficly archive'
 				: ''}</Text
 		>
@@ -34,5 +39,9 @@
 		gap: var(--space-1);
 		font-size: var(--text-lg);
 		line-height: var(--leading-tight);
+	}
+
+	.compact .text {
+		font-size: var(--text-md);
 	}
 </style>

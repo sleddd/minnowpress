@@ -11,6 +11,7 @@ import { validateSession } from './auth';
 import {
 	authorsToFollow,
 	getArchiveAuthor,
+	countWriters,
 	listArchiveAuthors,
 	listFollowing,
 	listWriters
@@ -95,7 +96,8 @@ export const SCENARIOS: Record<string, (db: DB, pick: DB) => Promise<unknown>> =
 	'tags directory': (db) => tagIndex(db),
 	'authors directory': async (db) => {
 		await listWriters(db, { pageSize: 60 });
-		await listArchiveAuthors(db, { pageSize: 60 });
+		await countWriters(db);
+		await listArchiveAuthors(db, { pageSize: 16 });
 	},
 	'archive author page': async (db) => {
 		const [author] = await db.select({ url: archiveAuthors.url }).from(archiveAuthors).limit(1);

@@ -40,6 +40,7 @@ describe('AuthorList', () => {
 			headingLevel: 3
 		});
 		expect(grid.container.querySelector('ul.grid')).not.toBeNull();
+		await expect.element(grid.getByText('212 stories', { exact: true })).toBeInTheDocument();
 		await grid.unmount();
 		const empty = await render(AuthorList, {
 			title: 'Writers',
@@ -47,5 +48,20 @@ describe('AuthorList', () => {
 			empty: 'Be the first.'
 		});
 		await expect.element(empty.getByText('Be the first.')).toBeInTheDocument();
+	});
+
+	it('notes the section beside its heading and grows the list in place', async () => {
+		const screen = await render(AuthorList, {
+			title: 'From the Ficly archive',
+			note: '2009–2014, by most stories',
+			authors,
+			layout: 'grid',
+			more: { href: '?show=32', label: 'Show more archive authors', keepScroll: true }
+		});
+		await expect.element(screen.getByText('2009–2014, by most stories')).toBeInTheDocument();
+		const more = screen.getByRole('link', { name: 'Show more archive authors' });
+		await expect.element(more).toHaveAttribute('href', '?show=32');
+		await expect.element(more).toHaveAttribute('data-sveltekit-reset', 'false');
+		await expectAccessible(screen.container);
 	});
 });

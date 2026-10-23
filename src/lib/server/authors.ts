@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gt, inArray, notInArray, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, gt, inArray, notInArray, sql } from 'drizzle-orm';
 import { archiveAuthorPath, ficlyAuthorUrl } from '#lib/archive.ts';
 import type { DB } from './db/client';
 import { archiveAuthors, follows, stories, users } from './db/schema';
@@ -68,6 +68,15 @@ export async function listWriters(
 		})),
 		hasMore: rows.length > size
 	};
+}
+
+/** How many members have published here, for the authors page. */
+export async function countWriters(db: DB): Promise<number> {
+	const [{ n }] = await db
+		.select({ n: count() })
+		.from(users)
+		.where(and(eq(users.isArchive, false), gt(users.publishedCount, 0)));
+	return n;
 }
 
 /**
