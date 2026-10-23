@@ -184,15 +184,18 @@ describe('todaysPrompt and listings', () => {
 		const closed = await ended();
 		const open = await live(new Date(NOW.getTime() - DAY));
 		const upcoming = await live(new Date(NOW.getTime() + DAY));
-		await db.insert(challenges).values({
-			title: 'From Ficly',
-			promptText: 'p',
-			source: 'human',
-			status: 'approved',
-			startsAt: new Date('2009-05-01T00:00:00Z'),
-			endsAt: new Date('2009-05-08T00:00:00Z'),
-			archiveId: 1
-		});
+		const [ficly] = await db
+			.insert(challenges)
+			.values({
+				title: 'From Ficly',
+				promptText: 'p',
+				source: 'human',
+				status: 'approved',
+				startsAt: new Date('2009-05-01T00:00:00Z'),
+				endsAt: new Date('2009-05-08T00:00:00Z'),
+				archiveId: 1
+			})
+			.returning();
 		await createStory(db, author.id, {
 			title: 'T',
 			body: 'B' + PAD,
@@ -211,8 +214,11 @@ describe('todaysPrompt and listings', () => {
 		const { open: o, upcoming: u, closed: c, hasMore } = await listChallenges(db, { now: NOW });
 		expect(o.map((x) => [x.id, x.entries])).toEqual([[open.id, 1]]);
 		expect(u.map((x) => x.id)).toEqual([upcoming.id]);
-		// Ficly archive challenges are left out.
-		expect(c.map((x) => [x.id, x.entries])).toEqual([[closed.id, 0]]);
+		// Past challenges include the Ficly archive's, after ours.
+		expect(c.map((x) => [x.id, x.entries])).toEqual([
+			[closed.id, 0],
+			[ficly.id, 0]
+		]);
 		expect(hasMore).toBe(false);
 	});
 

@@ -43,6 +43,7 @@
 		<div class="what">
 			<Link href="/challenges/{c.id}" variant="story">{c.title}</Link>
 			<p class="row-prompt">{c.promptText}</p>
+			{#if c.archiveUrl}<Text size="sm" tone="muted">From the Ficly archive</Text>{/if}
 		</div>
 		<span class="dates">{note}</span>
 		<span class="entries">{pluralize(c.entries ?? 0, 'entry', 'entries')}</span>
