@@ -3,8 +3,9 @@ import { atLeastMinimum, signIn, signOut, signUp, writeStory } from './helpers';
 
 test('sign-in form sends a magic link', async ({ page }) => {
 	await page.goto('/login');
-	await page.getByRole('textbox', { name: 'Email' }).fill('someone@example.com');
-	await page.getByRole('button', { name: 'Email me a link' }).click();
+	await page.getByText('Email me a sign-in link').click();
+	await page.getByRole('textbox', { name: 'Your email' }).fill('someone@example.com');
+	await page.getByRole('button', { name: 'email me a link' }).click();
 	await expect(page.getByRole('status')).toContainText('someone@example.com');
 });
 

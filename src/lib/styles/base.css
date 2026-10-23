@@ -48,3 +48,10 @@ img {
 .app-root {
 	display: contents;
 }
+
+/* The sun's theme flip (ThemeToggle): the new theme grows out in a circle, so no crossfade. */
+::view-transition-old(root),
+::view-transition-new(root) {
+	animation: none;
+	mix-blend-mode: normal;
+}
