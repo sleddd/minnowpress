@@ -4,8 +4,8 @@
 	interface Props {
 		/** Greeting, title, and the write button. */
 		header: Snippet;
-		/** Left half of the top band, e.g. the latest news. */
-		news: Snippet;
+		/** Left half of the top band: the member's latest stories. */
+		stories: Snippet;
 		/** Right half of the top band, e.g. recent activity. */
 		activity: Snippet;
 		/** The sidebar: desk links, library, people you follow. */
@@ -13,14 +13,14 @@
 		children: Snippet;
 	}
 
-	let { header, news, activity, aside, children }: Props = $props();
+	let { header, stories, activity, aside, children }: Props = $props();
 </script>
 
 <div class="desk-layout">
 	<div class="main">
 		<div class="header">{@render header()}</div>
 		<div class="band">
-			<div class="half news">{@render news()}</div>
+			<div class="half stories">{@render stories()}</div>
 			<div class="half activity">{@render activity()}</div>
 		</div>
 		{@render children()}
@@ -42,7 +42,7 @@
 		align-content: start;
 	}
 
-	/* News and activity side by side, between dashed rules. */
+	/* Your stories and activity side by side, between dashed rules. */
 	.band {
 		display: grid;
 		grid-template-columns: minmax(0, 1fr);
@@ -62,7 +62,7 @@
 			grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
 		}
 
-		.news {
+		.stories {
 			padding-right: var(--space-6);
 		}
 

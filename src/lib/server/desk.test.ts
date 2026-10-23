@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { DB } from './db/client';
-import { recentActivity, storyCounts } from './desk';
+import { latestOwnStories, recentActivity, storyCounts } from './desk';
 import { addComment, deleteComment } from './social';
 import { continueStory, createStory, removeStory } from './stories';
 import { createTestDb, makeUser, PAD } from './testing/db';
@@ -72,5 +72,28 @@ describe('storyCounts', () => {
 		await createStory(db, me.id, input({ publish: false }));
 		expect(await storyCounts(db, me.id)).toEqual({ drafts: 2, published: 1 });
 		expect(await storyCounts(db, them.id)).toEqual({ drafts: 0, published: 0 });
+	});
+});
+
+describe('latestOwnStories', () => {
+	it('lists drafts and published stories together, newest first, only the member’s', async () => {
+		const first = await createStory(db, me.id, input({ title: 'First' }));
+		const draft = await createStory(db, me.id, input({ title: 'Half done', publish: false }));
+		await createStory(db, them.id, input({ title: 'Not mine' }));
+		const items = await latestOwnStories(db, me.id);
+		expect(items.map((s) => [s.id, s.draft])).toEqual([
+			[draft.id, true],
+			[first.id, false]
+		]);
+		expect(items[0].title).toBe('Half done');
+		expect(items[0].at).toBeInstanceOf(Date);
+	});
+
+	it('stops at the limit and leaves removed stories out', async () => {
+		const kept = [];
+		for (let i = 0; i < 3; i++) kept.push(await createStory(db, me.id, input()));
+		await removeStory(db, kept[2].id, them.id);
+		expect((await latestOwnStories(db, me.id, 1)).map((s) => s.id)).toEqual([kept[1].id]);
+		expect(await latestOwnStories(db, them.id)).toEqual([]);
 	});
 });
