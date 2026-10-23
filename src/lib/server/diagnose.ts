@@ -21,13 +21,13 @@ import {
 	ensureCurrentChallenge,
 	getChallenge,
 	listChallenges,
+	pastChallenges,
 	todaysPrompt
 } from './challenges';
 import * as schema from './db/schema';
 import { archiveAuthors, stories, users } from './db/schema';
 import { recentActivity, storyCounts } from './desk';
 import {
-	activeFeed,
 	archiveAuthorFeed,
 	authorFeed,
 	bookmarksFeed,
@@ -69,9 +69,9 @@ export const SCENARIOS: Record<string, (db: DB, pick: DB) => Promise<unknown>> =
 		const prompt = await todaysPrompt(db);
 		await Promise.all([
 			popularFeed(db, opts),
-			activeFeed(db, opts),
 			latestFeed(db, opts),
 			popularTags(db, 14),
+			pastChallenges(db, 6),
 			prompt ? countEntries(db, prompt.id) : null
 		]);
 	},

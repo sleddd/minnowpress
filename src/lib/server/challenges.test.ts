@@ -17,6 +17,7 @@ import {
 	CHALLENGES_PAGE_SIZE,
 	listChallenges,
 	openChallenges,
+	pastChallenges,
 	pendingPrompts,
 	rejectPrompt,
 	scheduleChallenge,
@@ -512,5 +513,49 @@ describe('proposeChallenge', () => {
 	it('has no creator for AI suggestions', async () => {
 		const c = await live();
 		expect((await getChallenge(db, c.id))?.creator).toBeNull();
+	});
+});
+
+describe('pastChallenges', () => {
+	it('lists finished challenges, ours and the archive’s, newest first, with entry counts', async () => {
+		const db = await createTestDb();
+		const now = new Date('2026-10-22T12:00:00Z');
+		const add = (
+			title: string,
+			startsAt: string,
+			endsAt: string,
+			archiveId: number | null = null
+		) =>
+			db
+				.insert(challenges)
+				.values({
+					title,
+					promptText: 'p',
+					source: 'human',
+					status: 'approved',
+					startsAt: new Date(startsAt),
+					endsAt: new Date(endsAt),
+					archiveId
+				})
+				.returning()
+				.then(([c]) => c);
+		const ficly = await add('Tomb', '2010-03-01T00:00:00Z', '2010-03-15T00:00:00Z', 7);
+		const ours = await add('Low tide', '2026-09-01T00:00:00Z', '2026-09-15T00:00:00Z');
+		await add('Still open', '2026-10-20T00:00:00Z', '2026-11-03T00:00:00Z');
+		await db.insert(challenges).values({ title: 'Pending', promptText: 'p', source: 'ai' });
+		const author = await makeUser(db);
+		await createStory(db, author.id, {
+			title: 'T',
+			body: 'B' + PAD,
+			tags: [],
+			publish: true,
+			challengeId: ficly.id
+		});
+		const past = await pastChallenges(db, 6, now);
+		expect(past.map((c) => [c.id, c.entries])).toEqual([
+			[ours.id, 0],
+			[ficly.id, 1]
+		]);
+		expect(await pastChallenges(db, 1, now)).toHaveLength(1);
 	});
 });
