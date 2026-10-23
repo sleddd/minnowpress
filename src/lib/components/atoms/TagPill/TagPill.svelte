@@ -13,12 +13,11 @@
 >
 
 <style>
-	/* A luggage tag: pointed left end with a punched hole, italic lowercase name. */
+	/* A luggage tag: pointed left end, italic lowercase name. */
 	.tag {
 		--point: 0.75em;
 		--pad-start: calc(var(--point) + var(--space-3));
 
-		position: relative;
 		display: inline-flex;
 		align-items: baseline;
 		gap: var(--space-2);
@@ -29,18 +28,6 @@
 		font-style: italic;
 		text-decoration: none;
 		clip-path: polygon(var(--point) 0, 100% 0, 100% 100%, var(--point) 100%, 0 50%);
-	}
-
-	.tag::before {
-		content: '';
-		position: absolute;
-		top: 50%;
-		left: calc(var(--point) + var(--space-1));
-		width: var(--space-1);
-		height: var(--space-1);
-		border-radius: var(--radius-full);
-		background: var(--color-bg);
-		transform: translateY(-50%);
 	}
 
 	.tag:hover {
