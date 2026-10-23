@@ -184,6 +184,15 @@ export interface ActivityEventView {
 	continuation: { id: number; title: string } | null;
 }
 
+/** One of the member's own stories on their desk: a draft, or published. */
+export interface OwnStoryView {
+	id: number;
+	title: string;
+	draft: boolean;
+	/** When it was published, or for a draft, started. */
+	at: Date;
+}
+
 export interface SessionView {
 	id: string;
 	device: string;

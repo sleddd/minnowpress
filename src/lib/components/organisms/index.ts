@@ -36,7 +36,7 @@ export { default as HomeWelcome } from './HomeWelcome/HomeWelcome.svelte';
 export { default as StoryColumns } from './StoryColumns/StoryColumns.svelte';
 export { default as DeskPanel } from './DeskPanel/DeskPanel.svelte';
 export { default as ActivityList } from './ActivityList/ActivityList.svelte';
-export { default as DeskNews } from './DeskNews/DeskNews.svelte';
+export { default as DeskStories } from './DeskStories/DeskStories.svelte';
 export { default as ChallengeProposalForm } from './ChallengeProposalForm/ChallengeProposalForm.svelte';
 export { default as HelpContent } from './HelpContent/HelpContent.svelte';
 export { default as AppearanceForm } from './AppearanceForm/AppearanceForm.svelte';

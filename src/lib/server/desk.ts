@@ -83,3 +83,49 @@ export async function storyCounts(db: DB, userId: number) {
 	const of = (status: string) => rows.find((r) => r.status === status)?.n ?? 0;
 	return { drafts: of('draft'), published: of('published') };
 }
+
+export interface OwnStory {
+	id: number;
+	title: string;
+	draft: boolean;
+	at: Date;
+}
+
+/**
+ * The member's latest stories for their desk, drafts and published together, newest first.
+ * Two reads of at most `limit` rows each, so a prolific writer's desk costs no more to load.
+ */
+export async function latestOwnStories(db: DB, userId: number, limit = 6): Promise<OwnStory[]> {
+	const columns = {
+		id: stories.id,
+		title: stories.title,
+		status: stories.status,
+		createdAt: stories.createdAt,
+		publishedAt: stories.publishedAt
+	};
+	const mine = (status: 'published' | 'draft') =>
+		and(eq(stories.authorId, userId), eq(stories.status, status));
+	const [published, drafts] = await Promise.all([
+		db
+			.select(columns)
+			.from(stories)
+			.where(mine('published'))
+			.orderBy(desc(stories.publishedAt), desc(stories.id))
+			.limit(limit),
+		db
+			.select(columns)
+			.from(stories)
+			.where(mine('draft'))
+			.orderBy(desc(stories.createdAt), desc(stories.id))
+			.limit(limit)
+	]);
+	return [...published, ...drafts]
+		.map((r) => ({
+			id: r.id,
+			title: r.title,
+			draft: r.status === 'draft',
+			at: r.publishedAt ?? r.createdAt
+		}))
+		.sort((a, b) => b.at.getTime() - a.at.getTime() || b.id - a.id)
+		.slice(0, limit);
+}

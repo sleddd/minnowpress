@@ -31,6 +31,7 @@
 
 	.text {
 		display: grid;
+		gap: var(--space-1);
 		font-size: var(--text-lg);
 		line-height: var(--leading-tight);
 	}

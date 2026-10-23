@@ -4,8 +4,8 @@
 	import {
 		ActivityList,
 		DeskHeader,
-		DeskNews,
 		DeskPanel,
+		DeskStories,
 		FollowingPanel
 	} from '#lib/components/organisms/index.ts';
 	import { DeskLayout } from '#lib/components/templates/index.ts';
@@ -20,8 +20,8 @@
 	{#snippet header()}
 		<DeskHeader name={data.viewer?.displayName ?? ''} />
 	{/snippet}
-	{#snippet news()}
-		<DeskNews appName={PUBLIC_APP_NAME} post={data.news} />
+	{#snippet stories()}
+		<DeskStories username={data.viewer?.username ?? ''} stories={data.stories} />
 	{/snippet}
 	{#snippet activity()}
 		<ActivityList items={data.activity} />
