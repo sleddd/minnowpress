@@ -4,7 +4,7 @@
 	interface Props {
 		as?: 'p' | 'span';
 		tone?: 'default' | 'muted';
-		size?: 'sm' | 'md' | 'lg';
+		size?: 'xs' | 'sm' | 'md' | 'lg';
 		children: Snippet;
 	}
 
@@ -20,6 +20,10 @@
 
 	.muted {
 		color: var(--color-text-muted);
+	}
+
+	.xs {
+		font-size: var(--text-xs);
 	}
 
 	.sm {

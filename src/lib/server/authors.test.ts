@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import {
 	authorsToFollow,
 	getArchiveAuthor,
+	countWriters,
 	listArchiveAuthors,
 	refreshAllAuthorCounts,
 	refreshArchiveAuthors,
@@ -67,6 +68,7 @@ describe('listWriters', () => {
 			}
 		]);
 		expect(hasMore).toBe(false);
+		expect(await countWriters(db)).toBe(2);
 	});
 
 	it('excludes the archive account, filters by name, and paginates', async () => {

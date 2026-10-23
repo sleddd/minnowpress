@@ -57,6 +57,7 @@ test('authors and tags directories', async ({ page }) => {
 	await expect(
 		page.getByRole('region', { name: 'Writing here' }).getByRole('link', { name: 'Vic' })
 	).toBeVisible();
+	await expect(page.getByText(/^\d+ writers?$/)).toBeVisible();
 
 	await page.goto('/tags');
 	await expect(page.getByRole('heading', { level: 1, name: 'Tags' })).toBeVisible();
