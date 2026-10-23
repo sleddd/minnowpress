@@ -134,10 +134,20 @@ export async function validateSession(
 	db: DB,
 	token: string,
 	now = new Date()
-): Promise<{ user: User; expiresAt: Date; sessionId: string } | null> {
+): Promise<{
+	user: User;
+	expiresAt: Date;
+	sessionId: string;
+	twoFactorAt: Date | null;
+} | null> {
 	const id = await hashToken(token);
 	const [row] = await db
-		.select({ user: users, expiresAt: sessions.expiresAt, lastUsedAt: sessions.lastUsedAt })
+		.select({
+			user: users,
+			expiresAt: sessions.expiresAt,
+			lastUsedAt: sessions.lastUsedAt,
+			twoFactorAt: sessions.twoFactorAt
+		})
 		.from(sessions)
 		.innerJoin(users, eq(users.id, sessions.userId))
 		.where(eq(sessions.id, id));
@@ -148,7 +158,12 @@ export async function validateSession(
 	}
 	if (!row.lastUsedAt || now.getTime() - row.lastUsedAt.getTime() > LAST_USED_GRANULARITY)
 		await db.update(sessions).set({ lastUsedAt: now }).where(eq(sessions.id, id));
-	return { user: row.user, expiresAt: row.expiresAt, sessionId: id };
+	return {
+		user: row.user,
+		expiresAt: row.expiresAt,
+		sessionId: id,
+		twoFactorAt: row.twoFactorAt
+	};
 }
 
 /** The member's live sessions, most recently used first. Ids are the stored hashes, never tokens. */

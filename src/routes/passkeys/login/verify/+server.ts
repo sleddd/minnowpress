@@ -7,6 +7,7 @@ import { db } from '#lib/server/db/index.ts';
 import { ForbiddenError, NotFoundError } from '#lib/server/errors.ts';
 import { readJson, takeChallenge } from '#lib/server/passkey-routes.ts';
 import { finishAuthentication } from '#lib/server/passkeys.ts';
+import { afterSignIn } from '#lib/server/two-factor.ts';
 import type { RequestHandler } from './$types';
 
 export const POST: RequestHandler = async ({ cookies, request }) => {
@@ -20,7 +21,8 @@ export const POST: RequestHandler = async ({ cookies, request }) => {
 			rp
 		);
 		await signIn(db, cookies, user.id, !dev, request.headers.get('user-agent'));
-		return json({ ok: true, redirect: safeNext(typeof body.next === 'string' ? body.next : null) });
+		const next = safeNext(typeof body.next === 'string' ? body.next : null);
+		return json({ ok: true, redirect: afterSignIn(user, next) });
 	} catch (e) {
 		if (e instanceof NotFoundError || e instanceof ForbiddenError)
 			error(400, 'That passkey could not be verified.');

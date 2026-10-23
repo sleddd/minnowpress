@@ -4,15 +4,18 @@ import type { DB } from './db/client';
 import { DEFAULT_THEME } from '#lib/theme.ts';
 import { BLOCKED_CRAWLER_RESPONSE, crawlerChecked, isBlockedCrawler } from './bots';
 import { applySecurityHeaders } from './security';
+import { staffLock } from './two-factor';
 
 /**
  * Turns away crawlers other than the allowed search engines, resolves the signed-in user from
- * the session cookie, applies their theme, and adds security headers.
+ * the session cookie, applies their theme, and adds security headers. Staff who haven't passed
+ * two-step sign-in on this session are treated as ordinary members until they do.
  */
 export function createHandle(db: DB, opts: { secure: boolean }): Handle {
 	return async ({ event, resolve }) => {
 		event.locals.user = null;
 		event.locals.sessionId = null;
+		event.locals.staffLock = null;
 		// Before any database work: a blocked crawler costs nothing.
 		if (
 			crawlerChecked(event.url.pathname) &&
@@ -26,7 +29,10 @@ export function createHandle(db: DB, opts: { secure: boolean }): Handle {
 		if (token) {
 			const session = await validateSession(db, token);
 			if (session) {
-				event.locals.user = session.user;
+				const lock = staffLock(session.user, session.twoFactorAt);
+				// Every role check reads locals.user, so this one line keeps staff powers off.
+				event.locals.user = lock ? { ...session.user, role: 'user' } : session.user;
+				event.locals.staffLock = lock;
 				event.locals.sessionId = session.sessionId;
 				event.cookies.set(
 					SESSION_COOKIE,

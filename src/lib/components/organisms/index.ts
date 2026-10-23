@@ -45,3 +45,5 @@ export { default as FollowingPanel } from './FollowingPanel/FollowingPanel.svelt
 export { default as DeskHeader } from './DeskHeader/DeskHeader.svelte';
 export { default as ChallengeManager } from './ChallengeManager/ChallengeManager.svelte';
 export { default as ArchiveAuthor } from './ArchiveAuthor/ArchiveAuthor.svelte';
+export { default as TwoFactorPrompt } from './TwoFactorPrompt/TwoFactorPrompt.svelte';
+export { default as TwoFactorSettings } from './TwoFactorSettings/TwoFactorSettings.svelte';

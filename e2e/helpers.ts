@@ -1,6 +1,9 @@
 import type { Page } from '@playwright/test';
+import { eq } from 'drizzle-orm';
 import { createLoginToken } from '../src/lib/server/auth.ts';
 import { createDb } from '../src/lib/server/db/client.ts';
+import { users } from '../src/lib/server/db/schema.ts';
+import { timeStep, totpCode } from '../src/lib/server/two-factor.ts';
 
 export const db = createDb('file:e2e.db');
 
@@ -12,6 +15,36 @@ export async function signIn(page: Page, email: string) {
 	const token = await createLoginToken(db, email);
 	await page.goto(`/login/verify?token=${token}`);
 	await page.getByRole('button', { name: 'Continue' }).click();
+	await page.waitForURL((url) => !url.pathname.startsWith('/login'));
+}
+
+/** The authenticator secret seeded for staff accounts in these tests. */
+export const STAFF_SECRET = 'JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP';
+
+/** The code an authenticator app would show right now. */
+export const currentCode = (secret: string) => totpCode(secret, timeStep(new Date()));
+
+/**
+ * Signs in a staff account that has two-step sign-in on, entering a code from STAFF_SECRET.
+ * The account is seeded first if it doesn't exist. Codes can't be reused, so the last-used
+ * step is cleared: tests sign in faster than a real person's 30-second code changes.
+ */
+export async function signInAsStaff(page: Page, email: string, role: 'admin' | 'mod' = 'admin') {
+	const username = email.split('@')[0];
+	await db
+		.insert(users)
+		.values({ email, username, displayName: username, role })
+		.onConflictDoNothing();
+	await db
+		.update(users)
+		.set({ role, totpSecret: STAFF_SECRET, totpEnabledAt: new Date(), totpLastStep: null })
+		.where(eq(users.email, email));
+	const token = await createLoginToken(db, email);
+	await page.goto(`/login/verify?token=${token}`);
+	await page.getByRole('button', { name: 'Continue' }).click();
+	await page.waitForURL(/\/login\/two-factor/);
+	await page.getByRole('textbox', { name: 'Code' }).fill(currentCode(STAFF_SECRET));
+	await page.getByRole('button', { name: 'Unlock' }).click();
 	await page.waitForURL((url) => !url.pathname.startsWith('/login'));
 }
 

@@ -1,5 +1,7 @@
+import { eq } from 'drizzle-orm';
 import { describe, expect, it, vi } from 'vitest';
 import { createSession, SESSION_COOKIE } from './auth';
+import { sessions, users } from './db/schema';
 import { createHandle } from './handle';
 import { createTestDb, makeUser } from './testing/db';
 
@@ -104,5 +106,37 @@ describe('createHandle', () => {
 		expect(await render()).toBe('<html data-theme="light">');
 		const auto = await makeUser(db, { theme: 'auto' });
 		expect(await render((await createSession(db, auto.id)).token)).toBe('<html data-theme="">');
+	});
+
+	it('keeps staff powers off until this sign-in passes two-step sign-in', async () => {
+		const db = await createTestDb();
+		const admin = await makeUser(db, { role: 'admin' });
+		const { token } = await createSession(db, admin.id);
+		let event = fakeEvent(token);
+		await run(createHandle(db, { secure: true }), event);
+		expect(event.locals.user?.role).toBe('user');
+		expect(event.locals.staffLock).toBe('enroll');
+
+		await db.update(users).set({ totpEnabledAt: new Date() }).where(eq(users.id, admin.id));
+		event = fakeEvent(token);
+		await run(createHandle(db, { secure: true }), event);
+		expect(event.locals.staffLock).toBe('verify');
+		expect(event.locals.user?.role).toBe('user');
+
+		await db.update(sessions).set({ twoFactorAt: new Date() });
+		event = fakeEvent(token);
+		await run(createHandle(db, { secure: true }), event);
+		expect(event.locals.staffLock).toBeNull();
+		expect(event.locals.user?.role).toBe('admin');
+	});
+
+	it('never locks ordinary members', async () => {
+		const db = await createTestDb();
+		const member = await makeUser(db);
+		const { token } = await createSession(db, member.id);
+		const event = fakeEvent(token);
+		await run(createHandle(db, { secure: true }), event);
+		expect(event.locals.staffLock).toBeNull();
+		expect(event.locals.user?.role).toBe('user');
 	});
 });

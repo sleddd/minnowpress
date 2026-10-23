@@ -4,9 +4,35 @@ import { describeDevice } from '#lib/user-agent.ts';
 import { db } from '#lib/server/db/index.ts';
 import { formBool, formString, toActionFailure } from '#lib/server/forms.ts';
 import { listPasskeys, removePasskey } from '#lib/server/passkeys.ts';
-import { updateNotifications, updateProfile, updateTheme } from '#lib/server/users.ts';
+import {
+	disableTwoFactor,
+	enableTwoFactor,
+	otpauthUri,
+	pendingSecret,
+	qrDataUrl,
+	recoveryCodesLeft,
+	twoFactorMessage
+} from '#lib/server/two-factor.ts';
+import { getUserById, updateNotifications, updateProfile, updateTheme } from '#lib/server/users.ts';
 import { parseTheme } from '#lib/theme.ts';
+import type { User } from '#lib/server/db/schema.ts';
 import type { Actions, PageServerLoad } from './$types';
+
+/** The stored account: locals.user has staff powers switched off until two-step sign-in. */
+async function stored(user: User): Promise<User> {
+	return (await getUserById(db, user.id)) ?? user;
+}
+
+/** What the two-step section shows: nothing for members; setup, locked, or on for staff. */
+async function twoFactorState(user: User, lock: App.Locals['staffLock']) {
+	if (user.role === 'user') return null;
+	if (!user.totpEnabledAt) {
+		const secret = await pendingSecret(db, user);
+		return { state: 'setup' as const, secret, qr: await qrDataUrl(otpauthUri(secret, user.email)) };
+	}
+	if (lock === 'verify') return { state: 'locked' as const };
+	return { state: 'on' as const, recoveryLeft: await recoveryCodesLeft(db, user.id) };
+}
 
 export const load: PageServerLoad = async ({ locals, url }) => {
 	const user = requireUser(locals.user, url);
@@ -33,7 +59,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			expiresAt: s.expiresAt,
 			current: s.id === locals.sessionId
 		})),
-		welcome: url.searchParams.has('welcome')
+		welcome: url.searchParams.has('welcome'),
+		twoFactor: await twoFactorState(await stored(user), locals.staffLock)
 	};
 };
 
@@ -88,6 +115,38 @@ export const actions: Actions = {
 			notifyDigest: formBool(data, 'notifyDigest')
 		});
 		return { notificationsSaved: true };
+	},
+
+	enableTwoFactor: async ({ locals, url, request }) => {
+		const user = await stored(requireUser(locals.user, url));
+		if (!locals.sessionId) return fail(400);
+		try {
+			const codes = await enableTwoFactor(
+				db,
+				user,
+				locals.sessionId,
+				formString(await request.formData(), 'code')
+			);
+			return { recoveryCodes: codes };
+		} catch (e) {
+			const message = twoFactorMessage(e);
+			if (message === null) throw e;
+			return fail(400, { twoFactorError: message });
+		}
+	},
+
+	disableTwoFactor: async ({ locals, url, request }) => {
+		const user = await stored(requireUser(locals.user, url));
+		// Only from a sign-in that already passed the step.
+		if (locals.staffLock !== null) return fail(403);
+		try {
+			await disableTwoFactor(db, user, formString(await request.formData(), 'code'));
+			return { twoFactorOff: true };
+		} catch (e) {
+			const message = twoFactorMessage(e);
+			if (message === null) throw e;
+			return fail(400, { twoFactorError: message });
+		}
 	},
 
 	removePasskey: async ({ locals, url, request }) => {
