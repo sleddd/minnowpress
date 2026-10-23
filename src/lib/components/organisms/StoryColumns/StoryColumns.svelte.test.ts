@@ -78,7 +78,7 @@ describe('StoryColumns', () => {
 			.toHaveAttribute('href', '/stories?tab=active');
 	});
 
-	it('adds a past challenges lane last, titles linking to each challenge', async () => {
+	it('adds a past challenges lane just before tags, titles linking to each challenge', async () => {
 		const ended = new Date('2026-03-05T12:00:00Z');
 		const screen = await render(StoryColumns, {
 			columns: [{ title: 'Recent', blurb: 'b', stories: [] }],
@@ -104,10 +104,10 @@ describe('StoryColumns', () => {
 				}
 			]
 		});
-		const regions = screen.container.querySelectorAll('section.lane');
-		expect(regions[regions.length - 1]?.getAttribute('aria-labelledby')).toBe(
-			'col-past-challenges'
+		const lanes = [...screen.container.querySelectorAll('section.lane')].map((lane) =>
+			lane.getAttribute('aria-labelledby')
 		);
+		expect(lanes).toEqual(['col-recent', 'col-past-challenges', 'col-tags']);
 		await expect
 			.element(screen.getByRole('region', { name: 'Past challenges' }))
 			.toBeInTheDocument();

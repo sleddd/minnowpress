@@ -16,9 +16,9 @@
 
 	interface Props {
 		columns: StoryColumn[];
-		/** Adds a Tags lane, "Find your current." */
+		/** Adds a Tags lane on the far right, "Find your current." */
 		tags?: TagCountView[] | null;
-		/** Adds a Past challenges lane on the far right: titles that link to each challenge. */
+		/** Adds a Past challenges lane before Tags: titles that link to each challenge. */
 		challenges?: ChallengeView[] | null;
 	}
 
@@ -54,17 +54,6 @@
 				{/if}
 			</section>
 		{/each}
-		{#if tags}
-			<section class="lane" aria-labelledby="col-tags">
-				<div class="head">
-					<Heading level={2} size="lg" id="col-tags">Tags</Heading>
-					<p class="blurb">Find your current.</p>
-				</div>
-				<ul class="tags" role="list">
-					{#each tags as tag (tag.name)}<li><TagPill tag={tag.name} /></li>{/each}
-				</ul>
-			</section>
-		{/if}
 		{#if challenges}
 			<section class="lane" aria-labelledby="col-past-challenges">
 				<div class="head">
@@ -92,6 +81,17 @@
 					<div class="empty"><Text>No challenge has closed yet.</Text></div>
 				{/if}
 				<p class="more"><Link href="/challenges">All challenges</Link></p>
+			</section>
+		{/if}
+		{#if tags}
+			<section class="lane" aria-labelledby="col-tags">
+				<div class="head">
+					<Heading level={2} size="lg" id="col-tags">Tags</Heading>
+					<p class="blurb">Find your current.</p>
+				</div>
+				<ul class="tags" role="list">
+					{#each tags as tag (tag.name)}<li><TagPill tag={tag.name} /></li>{/each}
+				</ul>
 			</section>
 		{/if}
 	</div>
