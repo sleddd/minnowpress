@@ -215,3 +215,23 @@ test('settings lists where you are signed in and can sign out other devices', as
 	await laptop.close();
 	await phone.close();
 });
+
+test('the sun flips light and dark, and a visitor’s choice sticks', async ({ page }) => {
+	await page.goto('/tags');
+	const html = page.locator('html');
+	await expect(html).toHaveAttribute('data-theme', 'light');
+	await page.getByRole('button', { name: 'Turn the lights off (dark theme)' }).click();
+	await expect(html).toHaveAttribute('data-theme', 'dark');
+	await expect(
+		page.getByRole('button', { name: 'Turn the lights on (light theme)' })
+	).toBeVisible();
+	await page.reload();
+	await expect(html).toHaveAttribute('data-theme', 'dark');
+
+	// On a phone the sun stays in the ribbon, beside the menu.
+	await page.setViewportSize({ width: 390, height: 800 });
+	await page.getByRole('button', { name: 'Turn the lights on (light theme)' }).click();
+	await expect(html).toHaveAttribute('data-theme', 'light');
+	await page.reload();
+	await expect(html).toHaveAttribute('data-theme', 'light');
+});

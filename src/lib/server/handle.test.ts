@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { createSession, SESSION_COOKIE } from './auth';
 import { sessions, users } from './db/schema';
 import { createHandle } from './handle';
+import { THEME_COOKIE } from './theme-cookie';
 import { createTestDb, makeUser } from './testing/db';
 
 function fakeEvent(cookie?: string, opts: { userAgent?: string; path?: string } = {}) {
@@ -106,6 +107,21 @@ describe('createHandle', () => {
 		expect(await render()).toBe('<html data-theme="light">');
 		const auto = await makeUser(db, { theme: 'auto' });
 		expect(await render((await createSession(db, auto.id)).token)).toBe('<html data-theme="">');
+	});
+
+	it('renders a visitor’s sun choice from their cookie', async () => {
+		const db = await createTestDb();
+		const event = fakeEvent();
+		event.cookies.get = (name: string) => (name === THEME_COOKIE ? 'dark' : undefined);
+		const resolve = vi.fn(
+			async (_e: unknown, opts: { transformPageChunk: (c: { html: string }) => string }) =>
+				new Response(opts.transformPageChunk({ html: '<html data-theme="%theme%">' }))
+		);
+		const response = await createHandle(db, { secure: true })({
+			event: event as never,
+			resolve: resolve as never
+		});
+		expect(await response.text()).toBe('<html data-theme="dark">');
 	});
 
 	it('keeps staff powers off until this sign-in passes two-step sign-in', async () => {

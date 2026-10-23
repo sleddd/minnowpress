@@ -19,6 +19,7 @@
 	{#snippet ribbon()}
 		<RibbonNav
 			viewer={data.viewer}
+			theme={data.theme}
 			appName={PUBLIC_APP_NAME}
 			path={page.url.pathname}
 			query={page.url.pathname === '/search' ? (page.url.searchParams.get('q') ?? '') : ''}

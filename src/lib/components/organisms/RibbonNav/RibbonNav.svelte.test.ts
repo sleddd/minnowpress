@@ -17,6 +17,9 @@ describe('RibbonNav', () => {
 			await expect.element(nav.getByRole('link', { name: label })).toHaveAttribute('href', href);
 		await expect.element(screen.getByRole('link', { name: 'Home' })).toHaveAttribute('href', '/');
 		await expect.element(screen.getByRole('searchbox')).toHaveValue('duck');
+		await expect
+			.element(nav.getByRole('button', { name: 'Turn the lights off (dark theme)' }))
+			.toBeInTheDocument();
 		expect(screen.container.querySelectorAll('[aria-current="page"]')).toHaveLength(0);
 		await expectAccessible(screen.container);
 	});

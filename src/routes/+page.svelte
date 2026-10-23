@@ -21,7 +21,7 @@
 
 <HomeLayout>
 	{#snippet hero()}
-		<HomeWelcome signedIn={Boolean(data.viewer)} />
+		<HomeWelcome appName={PUBLIC_APP_NAME} signedIn={Boolean(data.viewer)} />
 	{/snippet}
 	{#snippet feature()}
 		<ChainExplainer />

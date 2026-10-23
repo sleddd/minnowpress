@@ -1,10 +1,10 @@
 import type { Handle } from '@sveltejs/kit/hooks';
 import { SESSION_COOKIE, sessionCookieOptions, validateSession } from './auth';
 import type { DB } from './db/client';
-import { DEFAULT_THEME } from '#lib/theme.ts';
 import { BLOCKED_CRAWLER_RESPONSE, crawlerChecked, isBlockedCrawler } from './bots';
 import { applySecurityHeaders } from './security';
 import { staffLock } from './two-factor';
+import { THEME_COOKIE, requestTheme } from './theme-cookie';
 
 /**
  * Turns away crawlers other than the allowed search engines, resolves the signed-in user from
@@ -44,12 +44,13 @@ export function createHandle(db: DB, opts: { secure: boolean }): Handle {
 			}
 		}
 
-		// Members pick a theme in Settings; everyone else gets the light default. Rendered
+		// Members pick a theme in Settings or with the sun; visitors' sun clicks live in a cookie;
+		// everyone else gets the light default. Rendered
 		// on the server so the page never flashes the wrong theme. Read at render time so a
 		// theme saved by this very request shows at once.
 		const response = await resolve(event, {
 			transformPageChunk: ({ html }) => {
-				const theme = event.locals.user?.theme ?? DEFAULT_THEME;
+				const theme = requestTheme(event.locals.user, event.cookies.get(THEME_COOKIE));
 				return html.replace('%theme%', theme === 'auto' ? '' : theme);
 			}
 		});

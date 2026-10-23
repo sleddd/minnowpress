@@ -19,3 +19,4 @@ export { default as StoryListItem } from './StoryListItem/StoryListItem.svelte';
 export { default as BlockField } from './BlockField/BlockField.svelte';
 export { default as RatingInput } from './RatingInput/RatingInput.svelte';
 export { default as StaffLockNotice } from './StaffLockNotice/StaffLockNotice.svelte';
+export { default as ThemeToggle } from './ThemeToggle/ThemeToggle.svelte';

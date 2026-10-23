@@ -1,27 +1,22 @@
 <script lang="ts">
-	import { Heading, Link, Text } from '../../atoms/index.ts';
+	import { Eyebrow, Heading, Link, Text } from '../../atoms/index.ts';
 
 	interface Props {
+		appName: string;
 		signedIn: boolean;
 	}
 
-	let { signedIn }: Props = $props();
+	let { appName, signedIn }: Props = $props();
 </script>
 
 <section class="welcome" aria-labelledby="welcome-title">
+	<Eyebrow tone="muted">Welcome to {appName}</Eyebrow>
 	<Heading level={1} size="lg" id="welcome-title">Small stories swim in schools.</Heading>
 	<Text>
 		Welcome to Minnow Press, a little corner of the internet for the shortest fictions. Every story
 		here fits within 1,024 characters, about 150 words, so you can read one, or write one, before
 		your tea cools. And no story has to swim alone. Anyone can write its sequel or its prequel, and
 		before long one little minnow becomes a school.
-	</Text>
-	<Text>
-		Minnow Press is a labor of love, made by a writer who missed this kind of storytelling and
-		wanted it back. It’s free, there are no ads, and every word is written by a person. Most of all,
-		it’s a gathering place for anyone who loves playing with words, whether you write every day or
-		haven’t written in years. Come read, come write, and help build a community of storytellers who
-		like their stories small.
 	</Text>
 	<p class="links">
 		<Link href="/about">Learn more</Link> or
