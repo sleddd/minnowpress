@@ -7,9 +7,11 @@
 		run: () => Promise<string | null>;
 		variant?: 'primary' | 'secondary';
 		id?: string;
+		/** The key icon before the label; off where the button speaks for itself. */
+		icon?: boolean;
 	}
 
-	let { label, run, variant = 'secondary', id = 'passkey' }: Props = $props();
+	let { label, run, variant = 'secondary', id = 'passkey', icon = true }: Props = $props();
 
 	let busy = $state(false);
 	let error = $state<string | null>(null);
@@ -24,7 +26,7 @@
 
 <div class="passkey">
 	<Button {variant} {onclick} disabled={busy} aria-describedby={error ? `${id}-error` : undefined}>
-		<Icon name="key" />
+		{#if icon}<Icon name="key" />{/if}
 		{busy ? 'Waiting for your passkey…' : label}
 	</Button>
 	<FieldError id="{id}-error" message={error} />
