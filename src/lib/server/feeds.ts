@@ -24,11 +24,20 @@ async function feed(
 	opts: FeedOptions,
 	extend: Extend = (q) => q,
 	/** Whether to break ties by story id. Off when `order` is already total, so an index can serve it whole. */
-	tiebreak = true
+	tiebreak = true,
+	/**
+	 * For feeds driven by another table (the people you follow): keeps the planner from walking
+	 * every published story newest first, hoping to meet a match. The unary + makes the status
+	 * test unusable by an index, so the feed is driven from its own rows instead.
+	 */
+	drivenElsewhere = false
 ) {
 	const page = Math.max(1, opts.page ?? 1);
 	const size = opts.pageSize ?? PAGE_SIZE;
-	const conditions = [eq(stories.status, 'published'), where];
+	const published = drivenElsewhere
+		? sql`+${stories.status} = 'published'`
+		: eq(stories.status, 'published');
+	const conditions = [published, where];
 	if (!opts.viewer?.showMature) conditions.push(eq(stories.isMature, false));
 
 	const base = db
@@ -102,12 +111,24 @@ export function activeFeed(db: DB, opts: FeedOptions = {}) {
 	return feed(db, gt(stories.activityScore, 0), [desc(stories.activityScore)], opts);
 }
 
+/**
+ * Driven from the member's follows: each followed writer's stories come off the
+ * (author, status, published_at) index, so this reads those writers' stories and nothing else.
+ */
 export function followingFeed(db: DB, userId: number, opts: FeedOptions = {}) {
-	const followed = db
-		.select({ id: follows.followeeId })
-		.from(follows)
-		.where(eq(follows.followerId, userId));
-	return feed(db, inArray(stories.authorId, followed), [desc(stories.publishedAt)], opts);
+	return feed(
+		db,
+		undefined,
+		[desc(stories.publishedAt)],
+		opts,
+		(q) =>
+			q.innerJoin(
+				follows,
+				and(eq(follows.followeeId, stories.authorId), eq(follows.followerId, userId))
+			),
+		true,
+		true
+	);
 }
 
 /**
