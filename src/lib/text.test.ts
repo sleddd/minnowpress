@@ -3,6 +3,7 @@ import {
 	countGraphemes,
 	normalizeBody,
 	parseTags,
+	challengeTag,
 	STORY_MAX,
 	STORY_MIN,
 	validateComment,
@@ -93,6 +94,23 @@ describe('validateComment', () => {
 		expect(validateComment('')).toBeDefined();
 		expect(validateComment('a'.repeat(1025))).toBeDefined();
 		expect(validateComment('nice')).toBeUndefined();
+	});
+});
+
+describe('challengeTag', () => {
+	it('is the title as a tag', () => {
+		expect(challengeTag('The Lost and Found')).toBe('the-lost-and-found');
+		expect(challengeTag('Rain, Again!')).toBe('rain-again');
+	});
+
+	it('cuts long titles to the tag limit without a dangling hyphen', () => {
+		const tag = challengeTag('Every group writes one sequel to the story before theirs');
+		expect(tag).toBe('every-group-writes-one-sequel');
+		expect(tag.length).toBeLessThanOrEqual(30);
+	});
+
+	it('is empty for a title with no letters or numbers', () => {
+		expect(challengeTag('?!')).toBe('');
 	});
 });
 

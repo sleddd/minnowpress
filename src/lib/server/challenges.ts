@@ -157,7 +157,11 @@ export async function todaysPrompt(db: DB, now = new Date()): Promise<Challenge 
 }
 
 export function openChallenges(db: DB, now = new Date()) {
-	return db.select().from(challenges).where(isOpen(now)).orderBy(desc(challenges.startsAt));
+	return db
+		.select()
+		.from(challenges)
+		.where(isOpen(now))
+		.orderBy(desc(challenges.startsAt), desc(challenges.id));
 }
 
 /** Past challenges per page: titles only, eleven to a column across the desktop's three. */

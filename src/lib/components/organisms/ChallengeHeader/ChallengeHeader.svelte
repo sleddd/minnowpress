@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { daysLeft, formatDate, timeLeft } from '#lib/format.ts';
+	import { CHALLENGE_TAG, challengeTag } from '#lib/text.ts';
 	import type { ChallengeView } from '#lib/types.ts';
 	import { Badge, Eyebrow, Heading, Icon, Link, VisuallyHidden } from '../../atoms/index.ts';
 
@@ -115,6 +116,12 @@
 					: 'This one has closed, but it’s still taking stories. Write one for it.'}
 			</p>
 			<div><Link href={enterHref} variant="ribbon">participate!</Link></div>
+			{#if open}
+				<p class="tags">
+					Or tag your story <code>{CHALLENGE_TAG}</code> or
+					<code>{challengeTag(challenge.title)}</code> when you publish it.
+				</p>
+			{/if}
 		{/if}
 	</section>
 {/if}

@@ -7,6 +7,7 @@ import { HOURLY_LIMITS } from './limits';
 import { listModerationLog } from './moderation-log';
 import {
 	archiveOf,
+	challengeFromTags,
 	continueStory,
 	countPublishedStories,
 	createStory,
@@ -397,5 +398,82 @@ describe('matureHiddenFrom', () => {
 		expect(matureHiddenFrom(story, { ...reader, role: 'mod' })).toBe(false);
 		expect(matureHiddenFrom(story, { ...reader, role: 'admin' })).toBe(false);
 		expect(matureHiddenFrom({ ...story, isMature: false }, null)).toBe(false);
+	});
+});
+
+describe('entering a challenge by tag', () => {
+	const challenge = async (title: string, startedAgo: number, endsIn?: number) => {
+		const [row] = await db
+			.insert(challenges)
+			.values({
+				title,
+				promptText: 'p',
+				source: 'human',
+				status: 'approved',
+				startsAt: new Date(Date.now() - startedAgo),
+				endsAt: endsIn === undefined ? null : new Date(Date.now() + endsIn)
+			})
+			.returning();
+		return row;
+	};
+
+	it('enters the open challenge when tagged “challenge”', async () => {
+		const current = await challenge('The Lost and Found', 1000);
+		const story = await createStory(db, alice.id, input({ tags: ['challenge', 'sea'] }));
+		expect(story.challengeId).toBe(current.id);
+	});
+
+	it('enters an open challenge tagged by name, ahead of the newest', async () => {
+		const named = await challenge('The Lost and Found', 5000);
+		await challenge('Tide', 1000);
+		const story = await createStory(db, alice.id, input({ tags: ['the-lost-and-found'] }));
+		expect(story.challengeId).toBe(named.id);
+		expect(await challengeFromTags(db, ['challenge'])).not.toBe(named.id);
+	});
+
+	it('ignores closed challenges and stories with neither tag', async () => {
+		await challenge('Lighthouse', 5000, -1000);
+		expect(await challengeFromTags(db, ['lighthouse', 'challenge'])).toBeNull();
+		await challenge('Tide', 1000);
+		expect(await challengeFromTags(db, ['sea'])).toBeNull();
+		expect(await challengeFromTags(db, [])).toBeNull();
+	});
+
+	it('keeps a challenge picked from its page', async () => {
+		const picked = await challenge('Lighthouse', 5000, -1000);
+		await challenge('Tide', 1000);
+		const story = await createStory(
+			db,
+			alice.id,
+			input({ challengeId: picked.id, tags: ['challenge'] })
+		);
+		expect(story.challengeId).toBe(picked.id);
+	});
+
+	it('waits for a draft to be published, either way', async () => {
+		const current = await challenge('Tide', 1000);
+		const tagged = input({ tags: ['tide'], publish: false });
+		const draft = await createStory(db, alice.id, tagged);
+		expect(draft.challengeId).toBeNull();
+		expect((await publishStory(db, alice.id, draft.id)).challengeId).toBe(current.id);
+
+		const other = await createStory(db, alice.id, tagged);
+		const saved = await updateStory(db, alice.id, other.id, tagged);
+		expect(saved.challengeId).toBeNull();
+		const published = await updateStory(db, alice.id, other.id, { ...tagged, publish: true });
+		expect(published.challengeId).toBe(current.id);
+	});
+
+	it('enters sequels tagged “challenge” too', async () => {
+		const current = await challenge('Tide', 1000);
+		const parent = await createStory(db, alice.id, input());
+		const sequel = await continueStory(
+			db,
+			bob.id,
+			parent.id,
+			'sequel',
+			input({ tags: ['challenge'] })
+		);
+		expect(sequel.challengeId).toBe(current.id);
 	});
 });
