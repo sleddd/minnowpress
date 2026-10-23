@@ -88,6 +88,18 @@ export function parseTags(input: string): string[] {
 	return [...seen];
 }
 
+/** Tagging a story this enters it into the challenge that's open now. */
+export const CHALLENGE_TAG = 'challenge';
+
+/**
+ * A challenge's name as a tag, cut to the tag limit: "The Lost and Found" → "the-lost-and-found".
+ * Tagging a story with it enters that challenge while it's open.
+ */
+export function challengeTag(title: string): string {
+	const [tag = ''] = parseTags(title.replaceAll(',', ' '));
+	return tag.slice(0, TAG_MAX_LENGTH).replace(/-+$/, '');
+}
+
 export function validateTags(tags: string[]): string | undefined {
 	if (tags.length > TAG_MAX_COUNT) return `Up to ${TAG_MAX_COUNT} tags.`;
 	if (tags.some((t) => t.length > TAG_MAX_LENGTH))

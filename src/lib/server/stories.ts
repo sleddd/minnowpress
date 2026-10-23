@@ -1,10 +1,11 @@
 import { and, asc, desc, eq, inArray, ne } from 'drizzle-orm';
 import { averageRating } from '#lib/rating.ts';
-import { normalizeBody, validateStoryInput } from '#lib/text.ts';
+import { CHALLENGE_TAG, challengeTag, normalizeBody, validateStoryInput } from '#lib/text.ts';
 import type { DB } from './db/client';
 import { challenges, stories, storyTags, tags, users, type Story, type User } from './db/schema';
 import { ForbiddenError, NotFoundError, ValidationError } from './errors';
 import { syncAuthorCounts } from './authors';
+import { openChallenges } from './challenges';
 import { assertUnderHourlyLimit } from './limits';
 import { logModeration } from './moderation-log';
 import { syncTagCounts } from './tags';
@@ -134,6 +135,23 @@ async function assertChallengeOpen(db: DB, challengeId: number) {
 	if (!started) throw new ValidationError({ challenge: 'That challenge hasn’t opened yet.' });
 }
 
+/**
+ * The challenge a story's tags enter it into when it's published without one picked: an open
+ * challenge's name as a tag (see `challengeTag`), or `challenge` for the one open now. Only open
+ * challenges count; a closed one still takes stories, but from its own page.
+ */
+export async function challengeFromTags(
+	db: DB,
+	names: string[],
+	now = new Date()
+): Promise<number | null> {
+	if (names.length === 0) return null;
+	const open = await openChallenges(db, now);
+	const named = open.find((c) => names.includes(challengeTag(c.title)));
+	if (named) return named.id;
+	return names.includes(CHALLENGE_TAG) ? (open[0]?.id ?? null) : null;
+}
+
 export async function createStory(
 	db: DB,
 	authorId: number,
@@ -142,6 +160,9 @@ export async function createStory(
 ): Promise<Story> {
 	validate(input);
 	if (input.challengeId) await assertChallengeOpen(db, input.challengeId);
+	const now = new Date();
+	const challengeId =
+		input.challengeId ?? (input.publish ? await challengeFromTags(db, input.tags, now) : null);
 
 	let chainId: number | null = null;
 	if (continuation) {
@@ -152,7 +173,6 @@ export async function createStory(
 		chainId = parent.chainId ?? parent.id;
 	}
 
-	const now = new Date();
 	const [story] = await db
 		.insert(stories)
 		.values({
@@ -160,7 +180,7 @@ export async function createStory(
 			title: input.title.trim(),
 			body: normalizeBody(input.body),
 			isMature: input.isMature ?? false,
-			challengeId: input.challengeId ?? null,
+			challengeId,
 			parentId: continuation?.parentId ?? null,
 			relation: continuation?.relation ?? null,
 			chainId,
@@ -230,13 +250,15 @@ export async function updateStory(
 		await assertChallengeOpen(db, input.challengeId);
 	const wasPublished = existing.status === 'published';
 	const publish = wasPublished || Boolean(input.publish);
+	const challengeId =
+		input.challengeId ?? (publish ? await challengeFromTags(db, input.tags, now) : null);
 	const [story] = await db
 		.update(stories)
 		.set({
 			title: input.title.trim(),
 			body: normalizeBody(input.body),
 			isMature: input.isMature ?? false,
-			challengeId: input.challengeId ?? null,
+			challengeId,
 			status: publish ? 'published' : 'draft',
 			publishedAt: wasPublished ? existing.publishedAt : publish ? now : null,
 			editedAt: wasPublished ? now : null
@@ -249,10 +271,14 @@ export async function updateStory(
 }
 
 export async function publishStory(db: DB, userId: number, storyId: number): Promise<Story> {
-	await ownDraft(db, userId, storyId);
+	const draft = await ownDraft(db, userId, storyId);
+	const now = new Date();
+	const challengeId =
+		draft.challengeId ??
+		(await challengeFromTags(db, (await tagsFor(db, [storyId])).get(storyId) ?? [], now));
 	const [story] = await db
 		.update(stories)
-		.set({ status: 'published', publishedAt: new Date() })
+		.set({ status: 'published', publishedAt: now, challengeId })
 		.where(eq(stories.id, storyId))
 		.returning();
 	await recount(db, story);

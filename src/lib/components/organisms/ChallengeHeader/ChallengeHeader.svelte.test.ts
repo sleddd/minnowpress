@@ -46,6 +46,9 @@ describe('ChallengeHeader', () => {
 		await expect
 			.element(screen.getByRole('link', { name: 'participate!' }))
 			.toHaveAttribute('href', '/write?challenge=4');
+		await expect
+			.element(screen.getByText(/Or tag your story\s+challenge\s+or\s+the-last-lighthouse-keeper/))
+			.toBeInTheDocument();
 		await expectAccessible(screen.container);
 	});
 
@@ -123,6 +126,7 @@ describe('ChallengeHeader', () => {
 		await expect.element(screen.getByText('Jun 20, 2009')).toBeInTheDocument();
 		await expect.element(screen.getByText('Entries')).not.toBeInTheDocument();
 		await expect.element(screen.getByText(/still taking stories/)).toBeInTheDocument();
+		await expect.element(screen.getByText(/Or tag your story/)).not.toBeInTheDocument();
 		await expect
 			.element(screen.getByRole('link', { name: 'participate!' }))
 			.toHaveAttribute('href', '/write?challenge=4');
