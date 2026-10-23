@@ -62,7 +62,12 @@
 					Sign in with the passkey saved on your device. It’s the quickest and safest way in.
 				</Text>
 				<div class="passkey">
-					<PasskeyButton id="passkey-login" label="sign in with passkey" run={onPasskey} />
+					<PasskeyButton
+						id="passkey-login"
+						label="sign in with passkey"
+						run={onPasskey}
+						icon={false}
+					/>
 				</div>
 			{:else}
 				<Text size="lg">Sign in with your email. We’ll send you a link, no password needed.</Text>
@@ -123,11 +128,14 @@
 
 <style>
 	.login {
+		/* Clear of the bookmark, with a little air before the headings. */
+		--top: calc(var(--space-9) + var(--space-4));
+
 		position: relative;
 		display: grid;
 		grid-template-columns: minmax(0, 1fr);
 		gap: var(--space-7);
-		padding: var(--space-8) var(--space-7) var(--space-7);
+		padding: var(--top) var(--space-7) var(--space-7);
 		border: var(--border-width) dashed var(--color-border-strong);
 	}
 
@@ -204,28 +212,24 @@
 	/* The ribbon buttons: passkey sign-in, and the email link once the sign-in email is open. */
 	.ribbon,
 	.passkey :global(button) {
-		--notch: var(--space-5);
-		--pad-end: calc(var(--notch) + var(--space-6));
+		--notch: var(--space-4);
+		--pad-end: calc(var(--notch) + var(--space-5));
 
 		display: inline-flex;
 		align-items: center;
 		gap: var(--space-3);
-		padding: var(--space-4) var(--pad-end) var(--space-4) var(--space-6);
+		padding: var(--space-3) var(--pad-end) var(--space-3) var(--space-5);
 		border: 0;
 		border-radius: var(--space-0);
 		background: var(--color-accent-hover);
 		color: var(--color-accent-contrast);
 		font: inherit;
-		font-size: var(--text-2xl);
+		font-size: var(--text-xl);
 		font-style: italic;
 		font-weight: var(--weight-bold);
 		white-space: nowrap;
 		cursor: pointer;
 		clip-path: polygon(0 0, 100% 0, calc(100% - var(--notch)) 50%, 100% 100%, 0 100%);
-	}
-
-	.ribbon {
-		font-size: var(--text-xl);
 	}
 
 	.ribbon:hover,
@@ -287,8 +291,9 @@
 
 	/* Two narrow columns, or a phone: the passkey ribbon's label steps down a size. */
 	@media (max-width: 72rem) {
+		.ribbon,
 		.passkey :global(button) {
-			font-size: var(--text-xl);
+			font-size: var(--text-lg);
 		}
 	}
 

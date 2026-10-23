@@ -34,4 +34,10 @@ describe('PasskeyButton', () => {
 			.element(screen.getByRole('button'))
 			.toHaveAttribute('aria-describedby', 'add-error');
 	});
+
+	it('can leave out the key icon', async () => {
+		const screen = await render(PasskeyButton, { label: 'go', run: async () => null, icon: false });
+		await expect.element(screen.getByRole('button', { name: 'go' })).toBeInTheDocument();
+		expect(screen.container.querySelector('svg')).toBeNull();
+	});
 });
