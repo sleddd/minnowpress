@@ -68,7 +68,7 @@
 	--text-hero: clamp(2.5rem, 6vw, 4.5rem);
 	--tracking-label: 0.08em;
 	/* The story page: reading text and its title. */
-	--text-story: 1.0625rem;
+	--text-story: 1.12rem;
 	--text-story-title: clamp(2rem, 3.5vw, 2.875rem);
 
 	--leading-tight: 1.15;
