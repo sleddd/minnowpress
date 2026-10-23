@@ -77,7 +77,8 @@ export const actions: Actions = {
 		};
 		try {
 			// Refresh the signed-in user so the page rendered after this save shows the new values.
-			locals.user = await updateProfile(db, user.id, values);
+			// Keep staff powers as the request hook set them (off until two-step sign-in).
+			locals.user = { ...(await updateProfile(db, user.id, values)), role: user.role };
 			return { saved: true };
 		} catch (e) {
 			return toActionFailure(e, { values });
@@ -102,18 +103,22 @@ export const actions: Actions = {
 	theme: async ({ locals, url, request }) => {
 		const user = requireUser(locals.user, url);
 		const theme = parseTheme(formString(await request.formData(), 'theme'));
-		locals.user = await updateTheme(db, user.id, theme);
+		locals.user = { ...(await updateTheme(db, user.id, theme)), role: user.role };
 		return { themeSaved: true };
 	},
 
 	notifications: async ({ locals, url, request }) => {
 		const user = requireUser(locals.user, url);
 		const data = await request.formData();
-		locals.user = await updateNotifications(db, user.id, {
-			notifyComments: formBool(data, 'notifyComments'),
-			notifyContinuations: formBool(data, 'notifyContinuations'),
-			notifyDigest: formBool(data, 'notifyDigest')
-		});
+		locals.user = {
+			...(await updateNotifications(db, user.id, {
+				notifyComments: formBool(data, 'notifyComments'),
+				notifyContinuations: formBool(data, 'notifyContinuations'),
+				notifyDigest: formBool(data, 'notifyDigest')
+			})),
+			// Keep staff powers as the request hook set them.
+			role: user.role
+		};
 		return { notificationsSaved: true };
 	},
 

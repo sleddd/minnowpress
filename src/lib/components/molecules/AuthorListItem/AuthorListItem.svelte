@@ -36,12 +36,13 @@
 
 	.text {
 		display: grid;
-		gap: var(--space-1);
+		gap: var(--space-2);
 		font-size: var(--text-lg);
 		line-height: var(--leading-tight);
 	}
 
 	.compact .text {
+		gap: var(--space-1);
 		font-size: var(--text-md);
 	}
 </style>

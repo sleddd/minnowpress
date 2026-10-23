@@ -30,13 +30,19 @@
 		clip-path: polygon(var(--point) 0, 100% 0, 100% 100%, var(--point) 100%, 0 50%);
 	}
 
+	/* Hover flips the colors, so the name stays readable in both themes. */
 	.tag:hover {
-		background: var(--color-nav-underline);
+		background: var(--color-accent);
+		color: var(--color-bg);
 	}
 
 	.count {
 		color: var(--color-text-muted);
 		font-size: var(--text-xs);
 		font-style: normal;
+	}
+
+	.tag:hover .count {
+		color: inherit;
 	}
 </style>
