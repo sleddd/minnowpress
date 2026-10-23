@@ -103,14 +103,18 @@ describe('ChallengeList', () => {
 });
 
 describe('ChallengeList prompts', () => {
-	it('shows a past challenge’s prompt whole, not cut short', async () => {
-		const long =
-			'Write about a door that only opens for one person, and what happens on the day it opens for someone else.';
+	it('lists past and upcoming challenges by title only; the open one shows its prompt', async () => {
 		const screen = await render(ChallengeList, {
-			open: [],
-			closed: [c(7, 'The Door', { promptText: long })]
+			open: [c(1, 'Now', { promptText: 'The open prompt.' })],
+			upcoming: [c(2, 'Soon', { promptText: 'An upcoming prompt.' })],
+			closed: [c(7, 'The Door', { promptText: 'A long past prompt about a door.' })]
 		});
-		await expect.element(screen.getByText(long)).toBeInTheDocument();
+		await expect.element(screen.getByRole('link', { name: 'The Door' })).toBeInTheDocument();
+		await expect.element(screen.getByText('The open prompt.')).toBeInTheDocument();
+		await expect
+			.element(screen.getByText('A long past prompt about a door.'))
+			.not.toBeInTheDocument();
+		await expect.element(screen.getByText('An upcoming prompt.')).not.toBeInTheDocument();
 	});
 });
 
@@ -130,7 +134,22 @@ describe('ChallengeList archive challenges', () => {
 		await expect
 			.element(screen.getByRole('link', { name: 'Tomb' }))
 			.toHaveAttribute('href', '/challenges/2');
-		await expect.element(screen.getByText('From the Ficly archive')).toBeInTheDocument();
-		expect(screen.container.textContent?.match(/From the Ficly archive/g)).toHaveLength(1);
+		const metas = [...screen.container.querySelectorAll('.cell .meta')].map((m) =>
+			m.textContent?.replace(/\s+/g, ' ').trim()
+		);
+		expect(metas[0]).not.toMatch(/Ficly/);
+		expect(metas[1]).toMatch(/Mar 1, 2010 – Mar 15, 2010 · 0 entries · Ficly/);
+	});
+});
+
+describe('ChallengeList layout', () => {
+	it('lays past challenges out in one, two or three columns as the screen widens', async () => {
+		const closed = Array.from({ length: 6 }, (_, i) => c(10 + i, `Past ${i}`));
+		const screen = await render(ChallengeList, { open: [], closed });
+		const grid = screen.container.querySelector('.grid') as HTMLElement;
+		const columns = () => getComputedStyle(grid).gridTemplateColumns.split(' ').length;
+		// The test viewport is desktop width.
+		expect(columns()).toBe(3);
+		expect(grid.querySelectorAll('.cell')).toHaveLength(6);
 	});
 });

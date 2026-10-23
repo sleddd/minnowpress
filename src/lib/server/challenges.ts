@@ -160,7 +160,8 @@ export function openChallenges(db: DB, now = new Date()) {
 	return db.select().from(challenges).where(isOpen(now)).orderBy(desc(challenges.startsAt));
 }
 
-export const CHALLENGES_PAGE_SIZE = 20;
+/** Past challenges per page: titles only, eleven to a column across the desktop's three. */
+export const CHALLENGES_PAGE_SIZE = 33;
 
 /**
  * The challenges page: the open challenge, approved ones waiting their turn, and a page of
