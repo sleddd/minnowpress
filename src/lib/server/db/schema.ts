@@ -195,11 +195,14 @@ export const stories = sqliteTable(
 	(t) => [
 		uniqueIndex('stories_archive_idx').on(t.archiveId),
 		index('stories_status_published_idx').on(t.status, t.publishedAt),
-		index('stories_author_idx').on(t.authorId),
+		// (scope, status, published_at): a member's or a challenge's stories, newest first, read
+		// straight off the index. One account owns nearly every story, so a bare author_id index left
+		// the planner walking the whole archive to find a small member's handful.
+		index('stories_author_idx').on(t.authorId, t.status, t.publishedAt),
 		index('stories_parent_idx').on(t.parentId),
 		index('stories_chain_idx').on(t.chainId),
 		index('stories_activity_idx').on(t.activityScore),
-		index('stories_challenge_idx').on(t.challengeId),
+		index('stories_challenge_idx').on(t.challengeId, t.status, t.publishedAt),
 		index('stories_popularity_idx').on(t.status, t.popularity),
 		index('stories_archive_author_idx').on(t.archiveAuthorUrl, t.status, t.publishedAt)
 	]

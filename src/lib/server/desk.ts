@@ -1,4 +1,4 @@
-import { and, count, desc, eq, isNull, ne } from 'drizzle-orm';
+import { and, count, desc, eq, isNull, ne, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/sqlite-core';
 import type { DB } from './db/client';
 import { comments, stories, users } from './db/schema';
@@ -51,7 +51,9 @@ export async function recentActivity(db: DB, userId: number, limit = 10): Promis
 				and(
 					eq(stories.authorId, userId),
 					ne(child.authorId, userId),
-					eq(child.status, 'published'),
+					// Unary +: start from the member's own stories and follow their continuations,
+					// rather than walking every published story newest first to find them.
+					sql`+${child.status} = 'published'`,
 					ne(stories.status, 'removed')
 				)
 			)

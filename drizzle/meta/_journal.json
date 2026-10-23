@@ -99,6 +99,13 @@
       "when": 1792694268582,
       "tag": "0013_counted_authors",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "6",
+      "when": 1792715024800,
+      "tag": "0014_scoped_story_indexes",
+      "breakpoints": true
     }
   ]
 }
