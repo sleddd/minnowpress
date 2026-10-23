@@ -19,6 +19,8 @@ test('home shows the welcome, explainer, and story columns', async ({ page }) =>
 	await expect(
 		page.getByRole('region', { name: 'Tags' }).getByRole('link', { name: 'harbor' })
 	).toBeVisible();
+	await expect(page.getByRole('region', { name: 'Past challenges' })).toBeVisible();
+	await expect(page.getByRole('region', { name: 'Active' })).toHaveCount(0);
 	await page.getByRole('link', { name: 'More recent' }).click();
 	await expect(page).toHaveURL(/\/stories$/);
 	await expect(

@@ -202,6 +202,21 @@ export async function listChallenges(db: DB, opts: { page?: number; now?: Date }
 }
 
 /**
+ * The most recently finished challenges, ours and the Ficly archive's, with entry counts: the
+ * home page's Past challenges lane. Index-served, so it reads only the rows it returns.
+ */
+export async function pastChallenges(db: DB, limit = 6, now = new Date()) {
+	const entries = sql<number>`(select count(*) from stories s where s.challenge_id = challenges.id and s.status = 'published')`;
+	const rows = await db
+		.select({ challenge: challenges, entries })
+		.from(challenges)
+		.where(and(eq(challenges.status, 'approved'), lte(challenges.endsAt, now)))
+		.orderBy(desc(challenges.startsAt), desc(challenges.id))
+		.limit(limit);
+	return rows.map((r) => ({ ...r.challenge, entries: Number(r.entries) }));
+}
+
+/**
  * Admin: ends an open challenge now, then starts the next approved one in the queue if there is
  * one (no AI prompt is generated here; the daily job does that if the queue is empty).
  */

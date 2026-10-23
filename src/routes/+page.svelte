@@ -38,12 +38,6 @@
 				more: { href: '/stories?tab=popular', label: 'More popular' }
 			},
 			{
-				title: 'Active',
-				blurb: 'Chains growing right now.',
-				stories: data.active,
-				more: { href: '/stories?tab=active', label: 'More active' }
-			},
-			{
 				title: 'Recent',
 				blurb: 'Still warm off the press.',
 				stories: data.recent,
@@ -51,5 +45,6 @@
 			}
 		]}
 		tags={data.tags}
+		challenges={data.pastChallenges}
 	/>
 </HomeLayout>

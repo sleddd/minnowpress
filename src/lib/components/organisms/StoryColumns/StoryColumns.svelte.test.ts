@@ -77,4 +77,57 @@ describe('StoryColumns', () => {
 			.element(screen.getByRole('link', { name: 'More active' }))
 			.toHaveAttribute('href', '/stories?tab=active');
 	});
+
+	it('adds a past challenges lane last, titles linking to each challenge', async () => {
+		const ended = new Date('2026-03-05T12:00:00Z');
+		const screen = await render(StoryColumns, {
+			columns: [{ title: 'Recent', blurb: 'b', stories: [] }],
+			tags: [{ name: 'duck', count: 3 }],
+			challenges: [
+				{
+					id: 7,
+					title: 'Lighthouse',
+					promptText: 'A keeper who never sleeps.',
+					source: 'human',
+					startsAt: null,
+					endsAt: ended,
+					entries: 1
+				},
+				{
+					id: 8,
+					title: 'Tide',
+					promptText: 'p',
+					source: 'ai',
+					startsAt: null,
+					endsAt: ended,
+					entries: 4
+				}
+			]
+		});
+		const regions = screen.container.querySelectorAll('section.lane');
+		expect(regions[regions.length - 1]?.getAttribute('aria-labelledby')).toBe(
+			'col-past-challenges'
+		);
+		await expect
+			.element(screen.getByRole('region', { name: 'Past challenges' }))
+			.toBeInTheDocument();
+		await expect
+			.element(screen.getByRole('link', { name: 'Lighthouse' }))
+			.toHaveAttribute('href', '/challenges/7');
+		await expect.element(screen.getByText('A keeper who never sleeps.')).not.toBeInTheDocument();
+		await expect.element(screen.getByText(/1 entry$/)).toBeInTheDocument();
+		await expect.element(screen.getByText(/4 entries$/)).toBeInTheDocument();
+		await expect
+			.element(screen.getByRole('link', { name: 'All challenges' }))
+			.toHaveAttribute('href', '/challenges');
+		await expectAccessible(screen.container);
+	});
+
+	it('says so when no challenge has closed', async () => {
+		const screen = await render(StoryColumns, {
+			columns: [{ title: 'Recent', blurb: 'b', stories: [] }],
+			challenges: []
+		});
+		await expect.element(screen.getByText('No challenge has closed yet.')).toBeInTheDocument();
+	});
 });

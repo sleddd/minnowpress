@@ -1,5 +1,6 @@
 <script lang="ts">
-	import type { TagCountView } from '#lib/types.ts';
+	import { formatDate, pluralize } from '#lib/format.ts';
+	import type { ChallengeView, TagCountView } from '#lib/types.ts';
 	import { Heading, Link, TagPill, Text } from '../../atoms/index.ts';
 	import { StoryListItem } from '../../molecules/index.ts';
 
@@ -17,9 +18,11 @@
 		columns: StoryColumn[];
 		/** Adds a Tags lane, "Find your current." */
 		tags?: TagCountView[] | null;
+		/** Adds a Past challenges lane on the far right: titles that link to each challenge. */
+		challenges?: ChallengeView[] | null;
 	}
 
-	let { columns, tags = null }: Props = $props();
+	let { columns, tags = null, challenges = null }: Props = $props();
 	const slug = (s: string) => s.toLowerCase().replace(/\W+/g, '-');
 </script>
 
@@ -60,6 +63,35 @@
 				<ul class="tags" role="list">
 					{#each tags as tag (tag.name)}<li><TagPill tag={tag.name} /></li>{/each}
 				</ul>
+			</section>
+		{/if}
+		{#if challenges}
+			<section class="lane" aria-labelledby="col-past-challenges">
+				<div class="head">
+					<Heading level={2} size="lg" id="col-past-challenges">Past challenges</Heading>
+					<p class="blurb">Closed, still worth reading.</p>
+				</div>
+				{#if challenges.length}
+					<ul class="stories" role="list">
+						{#each challenges as challenge (challenge.id)}
+							<li class="challenge">
+								<Link href="/challenges/{challenge.id}" variant="story">{challenge.title}</Link>
+								<span class="meta"
+									>{#if challenge.endsAt}Ended {formatDate(
+											challenge.endsAt
+										)}&nbsp;·&nbsp;{/if}{pluralize(
+										challenge.entries ?? 0,
+										'entry',
+										'entries'
+									)}</span
+								>
+							</li>
+						{/each}
+					</ul>
+				{:else}
+					<div class="empty"><Text>No challenge has closed yet.</Text></div>
+				{/if}
+				<p class="more"><Link href="/challenges">All challenges</Link></p>
 			</section>
 		{/if}
 	</div>
@@ -127,6 +159,21 @@
 
 	.empty strong {
 		color: var(--color-accent);
+	}
+
+	.challenge {
+		display: grid;
+		gap: var(--space-1);
+		overflow-wrap: anywhere;
+	}
+
+	.challenge :global(a) {
+		font-size: var(--text-lg);
+	}
+
+	.meta {
+		color: var(--color-text-muted);
+		font-size: var(--text-sm);
 	}
 
 	.tags {
