@@ -4,6 +4,7 @@
 	import '#lib/styles/base.css';
 	import { PUBLIC_APP_NAME } from '$app/env/public';
 	import { page } from '$app/state';
+	import { StaffLockNotice } from '#lib/components/molecules/index.ts';
 	import { RibbonNav, SiteFooter, SiteHeader } from '#lib/components/organisms/index.ts';
 	import { SiteShell } from '#lib/components/templates/index.ts';
 	import type { LayoutProps } from './$types';
@@ -23,6 +24,7 @@
 			query={page.url.pathname === '/search' ? (page.url.searchParams.get('q') ?? '') : ''}
 		/>
 	{/snippet}
+	{#if data.staffLock}<StaffLockNotice lock={data.staffLock} path={page.url.pathname} />{/if}
 	{@render children()}
 	{#snippet footer()}
 		<SiteFooter />

@@ -193,6 +193,12 @@ export interface OwnStoryView {
 	at: Date;
 }
 
+/** The two-step sign-in section in a staff member's settings. */
+export type TwoFactorStatus =
+	| { state: 'setup'; secret: string; qr: string }
+	| { state: 'locked' }
+	| { state: 'on'; recoveryLeft: number };
+
 export interface SessionView {
 	id: string;
 	device: string;

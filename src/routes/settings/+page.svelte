@@ -9,7 +9,8 @@
 		EmailSettingsForm,
 		PasskeyManager,
 		ProfileForm,
-		SessionList
+		SessionList,
+		TwoFactorSettings
 	} from '#lib/components/organisms/index.ts';
 	import { FormLayout } from '#lib/components/templates/index.ts';
 	import type { PageProps } from './$types';
@@ -51,6 +52,14 @@
 		saved={Boolean(form && 'themeSaved' in form && form.themeSaved)}
 	/>
 	<PasskeyManager passkeys={data.passkeys} {supported} onAdd={addPasskey} />
+	{#if data.twoFactor}
+		<TwoFactorSettings
+			status={data.twoFactor}
+			recoveryCodes={form && 'recoveryCodes' in form ? form.recoveryCodes : null}
+			turnedOff={Boolean(form && 'twoFactorOff' in form)}
+			error={form && 'twoFactorError' in form ? form.twoFactorError : null}
+		/>
+	{/if}
 	<SessionList
 		sessions={data.sessions}
 		revoked={Boolean(form && 'sessionsRevoked' in form && form.sessionsRevoked)}

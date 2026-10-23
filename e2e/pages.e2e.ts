@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { signIn, signUp, writeStory } from './helpers';
+import { signIn, signInAsStaff, signUp, writeStory } from './helpers';
 
 test('home shows the welcome, explainer, and story columns', async ({ page }) => {
 	await signUp(page, 'uma@example.com', 'uma');
@@ -67,7 +67,7 @@ test('authors and tags directories', async ({ page }) => {
 });
 
 test('admins write blog posts that readers can read', async ({ page }) => {
-	await signIn(page, 'admin@example.com');
+	await signInAsStaff(page, 'admin@example.com');
 	await page.goto('/admin/blog');
 	await page.getByRole('link', { name: 'New post' }).click();
 	await page.getByRole('textbox', { name: 'Title' }).fill('We are back');

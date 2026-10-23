@@ -49,6 +49,14 @@ export const users = sqliteTable(
 		// Published stories, kept by syncAuthorCounts whenever a story's status changes, so the
 		// authors directory and profile headers never count the archive's 32,000 rows.
 		publishedCount: integer('published_count').notNull().default(0),
+		// Two-step sign-in for staff: an authenticator-app secret (base32), set when they start
+		// setting it up and live once totpEnabledAt is set. totpLastStep stops a code being
+		// replayed; the failure count and time slow down guessing.
+		totpSecret: text('totp_secret'),
+		totpEnabledAt: integer('totp_enabled_at', { mode: 'timestamp_ms' }),
+		totpLastStep: integer('totp_last_step'),
+		twoFactorFailures: integer('two_factor_failures').notNull().default(0),
+		twoFactorFailedAt: integer('two_factor_failed_at', { mode: 'timestamp_ms' }),
 		createdAt: createdAt()
 	},
 	(t) => [
@@ -85,8 +93,24 @@ export const sessions = sqliteTable('sessions', {
 	// For the "Where you're signed in" list in Settings
 	signedInAt: integer('signed_in_at', { mode: 'timestamp_ms' }).$defaultFn(() => new Date()),
 	lastUsedAt: integer('last_used_at', { mode: 'timestamp_ms' }),
-	userAgent: text('user_agent')
+	userAgent: text('user_agent'),
+	// When this sign-in passed the authenticator-code step; staff powers need it.
+	twoFactorAt: integer('two_factor_at', { mode: 'timestamp_ms' })
 });
+
+/** One-time codes for signing in when the authenticator app is lost. Stored hashed. */
+export const recoveryCodes = sqliteTable(
+	'recovery_codes',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		userId: integer('user_id')
+			.notNull()
+			.references(() => users.id, { onDelete: 'cascade' }),
+		codeHash: text('code_hash').notNull(),
+		usedAt: integer('used_at', { mode: 'timestamp_ms' })
+	},
+	(t) => [index('recovery_codes_user_idx').on(t.userId)]
+);
 
 /** Recent sign-in link requests, for rate limiting by network address and email. Rows older than an hour are pruned. */
 export const loginRequests = sqliteTable(

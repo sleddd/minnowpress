@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { createLoginToken } from '../src/lib/server/auth.ts';
-import { db, signIn, signOut, signUp, writeStory } from './helpers';
+import { currentCode, db, signIn, signInAsStaff, signOut, signUp, writeStory } from './helpers';
 
 test('a story reported as AI-generated can be removed by an admin', async ({ page }) => {
 	await signUp(page, 'dave@example.com', 'dave');
@@ -17,18 +17,45 @@ test('a story reported as AI-generated can be removed by an admin', async ({ pag
 	await expect(page.getByText('A moderator will take a look.')).toBeVisible();
 	await signOut(page);
 
-	// ADMIN_EMAILS makes this account an admin on sign-up.
+	// ADMIN_EMAILS makes this account an admin on sign-up. Its staff tools stay locked until
+	// it sets up two-step sign-in.
 	await signUp(page, 'admin@example.com', 'editor');
+	await expect(page.getByText(/tools stay locked until you/)).toBeVisible();
+	await page.goto('/admin/reports');
+	await expect(page).toHaveURL(/\/settings#two-factor$/);
+	const twoFactor = page.getByRole('region', { name: 'Two-step sign-in' });
+	await expect(twoFactor.getByRole('img', { name: /QR code/ })).toBeVisible();
+	const secret = (await twoFactor.locator('code').first().textContent()) ?? '';
+	await twoFactor.getByRole('textbox', { name: 'Code from your app' }).fill(currentCode(secret));
+	await twoFactor.getByRole('button', { name: 'Turn on' }).click();
+	await expect(twoFactor.getByText('Two-step sign-in is on.')).toBeVisible();
+	const recovery = (await twoFactor.locator('li code').first().textContent()) ?? '';
+	expect(recovery).toMatch(/^[a-z2-7]{5}-[a-z2-7]{5}$/);
+
 	await page.goto('/admin/reports');
 	await expect(page.getByText('Suspected AI')).toBeVisible();
 	await page.getByRole('button', { name: 'Remove story' }).click();
 	await expect(page.getByRole('heading', { name: 'All clear' })).toBeVisible();
 
 	expect((await page.goto(storyUrl))?.status()).toBe(404);
+
+	// Signing in again asks for a code; a recovery code works once in its place.
+	await page.goto('/');
+	await signOut(page);
+	const token = await createLoginToken(db, 'admin@example.com');
+	await page.goto(`/login/verify?token=${token}&next=/admin/reports`);
+	await page.getByRole('button', { name: 'Continue' }).click();
+	await expect(page).toHaveURL(/\/login\/two-factor/);
+	await page.getByRole('textbox', { name: 'Code' }).fill('000000');
+	await page.getByRole('button', { name: 'Unlock' }).click();
+	await expect(page.getByText(/That code didn’t work/)).toBeVisible();
+	await page.getByRole('textbox', { name: 'Code' }).fill(recovery);
+	await page.getByRole('button', { name: 'Unlock' }).click();
+	await expect(page).toHaveURL(/\/admin\/reports$/);
 });
 
 test('admins approve prompts and they become the prompt of the day', async ({ page }) => {
-	await signIn(page, 'admin@example.com');
+	await signInAsStaff(page, 'admin@example.com');
 	await page.goto('/admin/prompts');
 	await page.getByRole('textbox', { name: 'Title' }).last().fill('The Last Train');
 	await page
@@ -87,7 +114,7 @@ test('a moderator can suspend a member, who is then signed out for good', async 
 	const member = await browser.newPage();
 	await signUp(member, 'frank@example.com', 'frank');
 
-	await signIn(page, 'admin@example.com');
+	await signInAsStaff(page, 'admin@example.com');
 	await page.goto('/@frank');
 	await page.getByRole('button', { name: 'Suspend member' }).click();
 	await expect(page.getByRole('button', { name: 'Lift suspension' })).toBeVisible();

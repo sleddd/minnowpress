@@ -5,6 +5,7 @@ import { consumeLoginToken, peekLoginToken, safeNext, signIn } from '#lib/server
 import { db } from '#lib/server/db/index.ts';
 import { ForbiddenError } from '#lib/server/errors.ts';
 import { formString } from '#lib/server/forms.ts';
+import { afterSignIn } from '#lib/server/two-factor.ts';
 import { findOrCreateUserByEmail } from '#lib/server/users.ts';
 import type { Actions, PageServerLoad } from './$types';
 
@@ -32,6 +33,11 @@ export const actions: Actions = {
 			throw e;
 		}
 		await signIn(db, cookies, result.user.id, !dev, request.headers.get('user-agent'));
-		redirect(303, result.created ? '/settings?welcome=1' : safeNext(formString(data, 'next')));
+		redirect(
+			303,
+			result.created
+				? '/settings?welcome=1'
+				: afterSignIn(result.user, safeNext(formString(data, 'next')))
+		);
 	}
 };
