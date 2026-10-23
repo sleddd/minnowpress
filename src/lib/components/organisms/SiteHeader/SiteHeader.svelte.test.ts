@@ -28,6 +28,10 @@ describe('SiteHeader', () => {
 		await expect
 			.element(nav.getByRole('link', { name: 'What is MinnowPress?' }))
 			.toHaveAttribute('href', '/about');
+		// The sun sits beside the menu, outside it, so it stays on phones too.
+		await expect
+			.element(screen.getByRole('button', { name: 'Turn the lights off (dark theme)' }))
+			.toBeInTheDocument();
 		await expect.element(nav.getByRole('link', { name: 'Blog' })).toBeInTheDocument();
 		await expect.element(nav.getByRole('link', { name: 'Help' })).toHaveAttribute('href', '/help');
 		await expectAccessible(screen.container);

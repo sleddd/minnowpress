@@ -122,8 +122,8 @@ test('archive stories are credited and can be continued', async ({ page }) => {
 
 test('the archive account cannot sign in', async ({ page }) => {
 	await page.goto('/login');
-	await page.getByRole('textbox', { name: 'Email' }).fill('archive@ficly.invalid');
-	await page.getByRole('button', { name: 'Email me a link' }).click();
+	await page.getByRole('textbox', { name: 'Email', exact: true }).fill('archive@ficly.invalid');
+	await page.getByRole('button', { name: 'join MinnowPress' }).click();
 	// A link is "sent" (no account enumeration), but using one fails.
 	await expect(page.getByRole('status')).toContainText('archive@ficly.invalid');
 	const token = await createLoginToken(db, 'archive@ficly.invalid');

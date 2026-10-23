@@ -9,8 +9,8 @@
 
 	let { data, form }: PageProps = $props();
 
-	// Passkey support is only knowable in the browser, after hydration.
-	let supported = $state(false);
+	// Passkey support is only knowable in the browser, after hydration; until then, assume it.
+	let supported = $state<boolean | null>(null);
 	onMount(() => {
 		supported = passkeysSupported();
 		// Offer saved passkeys in the email field's autofill; it waits until one is picked.
@@ -31,14 +31,15 @@
 
 <PageMeta title="Sign in" siteName={PUBLIC_APP_NAME} />
 
-<FormLayout>
+<FormLayout width="wide">
 	<LoginForm
 		appName={PUBLIC_APP_NAME}
 		next={data.next}
 		email={form && 'email' in form ? form.email : ''}
 		error={form && 'error' in form ? form.error : null}
+		intent={form && 'intent' in form ? form.intent : 'join'}
 		sentTo={form && 'sentTo' in form ? form.sentTo : null}
 		linkError={data.linkError}
-		onPasskey={supported ? passkey : null}
+		onPasskey={supported === false ? null : passkey}
 	/>
 </FormLayout>

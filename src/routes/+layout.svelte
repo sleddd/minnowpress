@@ -14,12 +14,16 @@
 
 <SiteShell>
 	{#snippet masthead()}
-		<SiteHeader appName={PUBLIC_APP_NAME} viewer={data.viewer} path={page.url.pathname} />
+		<SiteHeader
+			appName={PUBLIC_APP_NAME}
+			viewer={data.viewer}
+			path={page.url.pathname}
+			theme={data.theme}
+		/>
 	{/snippet}
 	{#snippet ribbon()}
 		<RibbonNav
 			viewer={data.viewer}
-			theme={data.theme}
 			appName={PUBLIC_APP_NAME}
 			path={page.url.pathname}
 			query={page.url.pathname === '/search' ? (page.url.searchParams.get('q') ?? '') : ''}

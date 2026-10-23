@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { tick } from 'svelte';
 	import type { Theme } from '#lib/theme.ts';
 	import { Icon } from '../../atoms/index.ts';
 
@@ -25,12 +26,37 @@
 	const dark = $derived(current === 'dark' || (current === 'auto' && systemDark));
 	const target = $derived(dark ? 'light' : 'dark');
 
+	let button: HTMLButtonElement;
+
+	/**
+	 * The new theme spreads out from the sun in a growing circle, where the browser can do view
+	 * transitions and the reader hasn't asked for less motion; otherwise it switches at once.
+	 */
+	async function flip(next: Theme) {
+		const apply = async () => {
+			picked = next;
+			document.documentElement.dataset.theme = next;
+			await tick();
+		};
+		const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+		if (still || !document.startViewTransition) return apply();
+		const box = button.getBoundingClientRect();
+		const x = box.left + box.width / 2;
+		const y = box.top + box.height / 2;
+		const reach = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y));
+		const transition = document.startViewTransition(apply);
+		await transition.ready;
+		document.documentElement.animate(
+			{ clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${reach}px at ${x}px ${y}px)`] },
+			{ duration: 550, easing: 'ease-in-out', pseudoElement: '::view-transition-new(root)' }
+		);
+	}
+
 	// Flip the page at once and save in the background; without scripts the form posts instead.
 	async function onsubmit(event: SubmitEvent) {
 		event.preventDefault();
 		const next = target;
-		picked = next;
-		document.documentElement.dataset.theme = next;
+		await flip(next);
 		const body = new FormData();
 		body.set('theme', next);
 		await fetch('/theme', { method: 'POST', body, headers: { accept: 'application/json' } });
@@ -41,6 +67,7 @@
 	<input type="hidden" name="theme" value={target} />
 	<input type="hidden" name="next" value={path} />
 	<button
+		bind:this={button}
 		type="submit"
 		aria-label={dark ? 'Turn the lights on (light theme)' : 'Turn the lights off (dark theme)'}
 		title={dark ? 'Light theme' : 'Dark theme'}
@@ -70,6 +97,6 @@
 	}
 
 	button:hover {
-		color: var(--color-nav-underline);
+		color: var(--color-accent);
 	}
 </style>

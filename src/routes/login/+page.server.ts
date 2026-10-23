@@ -19,10 +19,14 @@ export const actions: Actions = {
 		const data = await request.formData();
 		const email = normalizeEmail(formString(data, 'email'));
 		const next = safeNext(formString(data, 'next'));
-		if (!isValidEmail(email)) return fail(400, { email, error: 'Enter a valid email address.' });
+		// Both sides of the page send the same link; this only says where to show an error.
+		const intent: 'signin' | 'join' = formString(data, 'intent') === 'signin' ? 'signin' : 'join';
+		if (!isValidEmail(email))
+			return fail(400, { email, intent, error: 'Enter a valid email address.' });
 		if (!(await allowLoginRequest(db, { email, ip: getClientAddress() })))
 			return fail(429, {
 				email,
+				intent,
 				error: 'We already sent a few links. Check your inbox, or try again in 15 minutes.'
 			});
 

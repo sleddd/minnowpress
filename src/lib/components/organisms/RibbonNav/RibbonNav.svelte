@@ -1,8 +1,7 @@
 <script lang="ts">
-	import type { Theme } from '#lib/theme.ts';
 	import type { Viewer } from '#lib/types.ts';
 	import { Icon } from '../../atoms/index.ts';
-	import { SearchForm, ThemeToggle } from '../../molecules/index.ts';
+	import { SearchForm } from '../../molecules/index.ts';
 
 	interface Props {
 		path: string;
@@ -11,17 +10,9 @@
 		/** For the account links in the phone menu (the masthead shows them on wider screens). */
 		viewer?: Viewer | null;
 		appName?: string;
-		/** For the sun that flips light and dark; it stays in the ribbon on every screen. */
-		theme?: Theme;
 	}
 
-	let {
-		path,
-		query = '',
-		viewer = null,
-		appName = 'MinnowPress',
-		theme = 'light'
-	}: Props = $props();
+	let { path, query = '', viewer = null, appName = 'MinnowPress' }: Props = $props();
 
 	const isMod = $derived(viewer?.role === 'mod' || viewer?.role === 'admin');
 
@@ -54,7 +45,6 @@
 			{/each}
 		</ul>
 		<div class="search"><SearchForm id="ribbon-search" value={query} /></div>
-		<div class="lights"><ThemeToggle {theme} {path} /></div>
 	</nav>
 
 	<!-- Phones: the sections, search, and account links fold into a menu under the ribbon. -->
@@ -146,18 +136,9 @@
 		height: var(--size-avatar-md);
 	}
 
-	.lights {
-		display: flex;
-		color: var(--color-nav-text);
-	}
-
 	.wrap {
 		--notch: var(--space-6);
 		--pad-end: calc(var(--notch) + var(--space-5));
-
-		/* Room the phone menu's "menu ≡" takes at the right of the ribbon. */
-		--menu-width: 6.5rem;
-		--phone-pad-end: calc(var(--pad-end) + var(--menu-width));
 
 		/* The ribbon stops just short of the card's right edge. */
 		--short: var(--space-6);
@@ -221,14 +202,8 @@
 			font-size: var(--text-lg);
 		}
 
-		.lights {
-			margin-left: auto;
-		}
-
-		/* The search drops to its own row; the sun stays up top on the right. */
 		.search {
 			flex-basis: 100%;
-			order: 1;
 		}
 
 		.search :global(.search) {
@@ -248,7 +223,7 @@
 
 		.ribbon {
 			min-height: calc(var(--space-8) + var(--space-2));
-			padding-right: var(--phone-pad-end);
+			padding-right: var(--pad-end);
 			clip-path: polygon(0 0, 100% 0, calc(100% - var(--notch)) 50%, 100% 100%, 0 100%);
 		}
 
