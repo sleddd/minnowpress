@@ -164,8 +164,8 @@ export const CHALLENGES_PAGE_SIZE = 20;
 
 /**
  * The challenges page: the open challenge, approved ones waiting their turn, and a page of
- * past ones, with entry counts. Ficly archive challenges are left out (they're still linked
- * from their stories).
+ * past ones, with entry counts. Past ones include the 1,300-odd challenges imported from Ficly,
+ * after ours since they're older.
  */
 export async function listChallenges(db: DB, opts: { page?: number; now?: Date } = {}) {
 	const now = opts.now ?? new Date();
@@ -181,8 +181,9 @@ export async function listChallenges(db: DB, opts: { page?: number; now?: Date }
 		select()
 			.where(and(approved, gt(challenges.startsAt, now)))
 			.orderBy(asc(challenges.startsAt), asc(challenges.id)),
+		// Past challenges include the Ficly archive's, newest first, so ours come before theirs.
 		select()
-			.where(and(approved, lte(challenges.endsAt, now)))
+			.where(and(eq(challenges.status, 'approved'), lte(challenges.endsAt, now)))
 			.orderBy(desc(challenges.startsAt), desc(challenges.id))
 			.limit(CHALLENGES_PAGE_SIZE + 1)
 			.offset((page - 1) * CHALLENGES_PAGE_SIZE)

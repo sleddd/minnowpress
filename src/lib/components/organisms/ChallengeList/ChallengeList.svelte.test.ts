@@ -113,3 +113,24 @@ describe('ChallengeList prompts', () => {
 		await expect.element(screen.getByText(long)).toBeInTheDocument();
 	});
 });
+
+describe('ChallengeList archive challenges', () => {
+	it('lists Ficly challenges among the past ones, marked as from the archive', async () => {
+		const screen = await render(ChallengeList, {
+			open: [],
+			closed: [
+				c(1, 'Ours'),
+				c(2, 'Tomb', {
+					archiveUrl: 'https://ficly.com/challenges/12/',
+					startsAt: new Date('2010-03-01T00:00:00Z'),
+					endsAt: new Date('2010-03-15T00:00:00Z')
+				})
+			]
+		});
+		await expect
+			.element(screen.getByRole('link', { name: 'Tomb' }))
+			.toHaveAttribute('href', '/challenges/2');
+		await expect.element(screen.getByText('From the Ficly archive')).toBeInTheDocument();
+		expect(screen.container.textContent?.match(/From the Ficly archive/g)).toHaveLength(1);
+	});
+});
