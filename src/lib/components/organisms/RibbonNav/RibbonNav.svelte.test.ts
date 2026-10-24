@@ -50,6 +50,19 @@ describe('RibbonNav', () => {
 			await page.viewport(1280, 900);
 		});
 
+		it('carries the wordmark and the sun, and the menu icon turns into a cross', async () => {
+			await phone();
+			const screen = await render(RibbonNav, { path: '/', appName: 'MinnowPress', theme: 'dark' });
+			const nav = screen.getByRole('navigation', { name: 'Main' });
+			await expect.element(nav.getByText('minnow')).toBeVisible();
+			await expect.element(nav.getByRole('button', { name: /lights on/ })).toBeVisible();
+			const summary = screen.getByLabelText('Menu');
+			const icon = () => summary.element().querySelector('path')?.getAttribute('d');
+			const closed = icon();
+			await summary.click();
+			expect(icon()).not.toBe(closed);
+		});
+
 		it('opens to show the sections, search, and sign-in links', async () => {
 			await phone();
 			const screen = await render(RibbonNav, { path: '/tags', appName: 'MinnowPress' });

@@ -1,7 +1,8 @@
 <script lang="ts">
+	import type { Theme } from '#lib/theme.ts';
 	import type { Viewer } from '#lib/types.ts';
-	import { Icon } from '../../atoms/index.ts';
-	import { SearchForm } from '../../molecules/index.ts';
+	import { Icon, Logo } from '../../atoms/index.ts';
+	import { SearchForm, ThemeToggle } from '../../molecules/index.ts';
 
 	interface Props {
 		path: string;
@@ -10,9 +11,17 @@
 		/** For the account links in the phone menu (the masthead shows them on wider screens). */
 		viewer?: Viewer | null;
 		appName?: string;
+		/** For the sun, which moves into the ribbon on phones. */
+		theme?: Theme;
 	}
 
-	let { path, query = '', viewer = null, appName = 'MinnowPress' }: Props = $props();
+	let {
+		path,
+		query = '',
+		viewer = null,
+		appName = 'MinnowPress',
+		theme = 'light'
+	}: Props = $props();
 
 	const isMod = $derived(viewer?.role === 'mod' || viewer?.role === 'admin');
 
@@ -34,7 +43,11 @@
 
 <div class="wrap">
 	<nav class="ribbon" aria-label="Main">
-		<a class="home" href="/" aria-label="Home"><Icon name="fish" filled /></a>
+		<a class="home" href="/" aria-label="Home"
+			><Icon name="fish" filled /><span class="wordmark"
+				><Logo name={appName} size="sm" tone="ribbon" /></span
+			></a
+		>
 		<ul role="list">
 			{#each sections as section (section.href)}
 				<li>
@@ -45,17 +58,12 @@
 			{/each}
 		</ul>
 		<div class="search"><SearchForm id="ribbon-search" value={query} /></div>
+		<div class="sun"><ThemeToggle {theme} {path} /></div>
 	</nav>
 
 	<!-- Phones: the sections, search, and account links fold into a menu under the ribbon. -->
 	<details class="menu" bind:open>
-		<summary aria-label="Menu">
-			<span class="when-closed" aria-hidden="true">menu</span><span
-				class="when-open"
-				aria-hidden="true">close</span
-			>
-			<Icon name="menu" />
-		</summary>
+		<summary aria-label="Menu"><Icon name={open ? 'close' : 'menu'} /></summary>
 		<div class="panel">
 			<SearchForm id="menu-search" value={query} />
 			<ul class="menu-links" role="list">
@@ -134,6 +142,12 @@
 	.home :global(.icon) {
 		width: var(--size-avatar-md);
 		height: var(--size-avatar-md);
+	}
+
+	/* The wordmark and the sun join the ribbon on phones only. */
+	.wordmark,
+	.sun {
+		display: none;
 	}
 
 	.wrap {
@@ -219,12 +233,46 @@
 	@media (max-width: 48rem) {
 		.wrap {
 			--short: var(--space-5);
+			--pad-end: calc(var(--notch) + var(--space-3));
+
+			/* Room on the right for the menu button, which sits over the ribbon's end. */
+			--menu-room: calc(var(--pad-end) + var(--space-6) + var(--space-2));
 		}
 
 		.ribbon {
+			flex-wrap: nowrap;
 			min-height: calc(var(--space-8) + var(--space-2));
-			padding-right: var(--pad-end);
+			padding-inline: var(--space-5) var(--menu-room);
 			clip-path: polygon(0 0, 100% 0, calc(100% - var(--notch)) 50%, 100% 100%, 0 100%);
+		}
+
+		.home {
+			align-items: center;
+			gap: var(--space-3);
+			min-width: 0;
+		}
+
+		.home > :global(.icon) {
+			width: var(--space-6);
+			height: var(--space-6);
+		}
+
+		.wordmark {
+			display: inline-flex;
+		}
+
+		.wordmark :global(.word) {
+			font-size: var(--text-xl);
+		}
+
+		.sun {
+			display: inline-flex;
+			margin-left: auto;
+			color: var(--color-nav-text);
+		}
+
+		.sun :global(button:hover) {
+			color: var(--color-nav-underline);
 		}
 
 		.ribbon ul,
@@ -242,12 +290,8 @@
 			right: var(--menu-right);
 			display: flex;
 			align-items: center;
-			gap: var(--space-2);
 			height: calc(var(--space-8) + var(--space-2));
 			color: var(--color-nav-text);
-			font-size: var(--text-xl);
-			font-style: italic;
-			font-weight: var(--weight-bold);
 			list-style: none;
 			cursor: pointer;
 		}
@@ -256,13 +300,9 @@
 			display: none;
 		}
 
-		.when-open,
-		.menu[open] .when-closed {
-			display: none;
-		}
-
-		.menu[open] .when-open {
-			display: inline;
+		summary :global(.icon) {
+			width: var(--space-6);
+			height: var(--space-6);
 		}
 
 		.panel {
@@ -326,6 +366,22 @@
 			font-size: var(--text-lg);
 			text-decoration: none;
 			cursor: pointer;
+		}
+	}
+
+	/* The smallest phones: a little less room around the wordmark so the sun fits beside it. */
+	@media (max-width: 22rem) {
+		.ribbon {
+			gap: var(--space-2);
+			padding-left: var(--space-4);
+		}
+
+		.home {
+			gap: var(--space-2);
+		}
+
+		.wordmark :global(.word) {
+			font-size: var(--text-lg);
 		}
 	}
 </style>

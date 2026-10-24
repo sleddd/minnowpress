@@ -5,16 +5,18 @@
 		size?: 'sm' | 'lg';
 		/** Small caps line under the wordmark. */
 		tagline?: string | null;
+		/** ribbon: light letters for the teal ribbon. */
+		tone?: 'default' | 'ribbon';
 	}
 
-	let { name, size = 'lg', tagline = null }: Props = $props();
+	let { name, size = 'lg', tagline = null, tone = 'default' }: Props = $props();
 
 	const split = $derived(/press$/i.test(name) && name.length > 5);
 	const head = $derived(split ? name.slice(0, -5) : name);
 	const tail = $derived(split ? name.slice(-5) : '');
 </script>
 
-<span class="logo {size}">
+<span class="logo {size}" class:ribbon={tone === 'ribbon'}>
 	<span class="text">
 		<span class="word">{head.toLowerCase()}<em>{tail.toLowerCase()}</em></span>
 		{#if tagline}<span class="tagline">{tagline}</span>{/if}
@@ -62,5 +64,10 @@
 
 	.sm .word {
 		font-size: var(--text-xl);
+	}
+
+	.ribbon,
+	.ribbon .word em {
+		color: var(--color-nav-text);
 	}
 </style>

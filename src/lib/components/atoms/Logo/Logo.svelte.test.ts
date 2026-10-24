@@ -17,6 +17,11 @@ describe('Logo', () => {
 		expect(screen.container.querySelector('.logo')?.classList.contains('sm')).toBe(true);
 	});
 
+	it('has a light tone for the ribbon', async () => {
+		const screen = await render(Logo, { name: 'MinnowPress', tone: 'ribbon' });
+		expect(screen.container.querySelector('.logo')?.classList.contains('ribbon')).toBe(true);
+	});
+
 	it('can show a tagline', async () => {
 		const screen = await render(Logo, {
 			name: 'MinnowPress',

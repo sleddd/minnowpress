@@ -8,7 +8,7 @@
 		appName: string;
 		viewer: Viewer | null;
 		path: string;
-		/** For the sun that flips light and dark: top right on every screen, phones included. */
+		/** For the sun that flips light and dark, top right (in the ribbon on phones). */
 		theme?: Theme;
 	}
 
@@ -112,9 +112,9 @@
 		}
 	}
 
-	/* On phones the account links live in the ribbon's menu; the sun stays up here. */
+	/* On phones the ribbon carries the wordmark, the sun and the menu instead. */
 	@media (max-width: 48rem) {
-		.utility {
+		.masthead {
 			display: none;
 		}
 	}

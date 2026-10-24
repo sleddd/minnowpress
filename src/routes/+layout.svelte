@@ -26,6 +26,7 @@
 			viewer={data.viewer}
 			appName={PUBLIC_APP_NAME}
 			path={page.url.pathname}
+			theme={data.theme}
 			query={page.url.pathname === '/search' ? (page.url.searchParams.get('q') ?? '') : ''}
 		/>
 	{/snippet}
