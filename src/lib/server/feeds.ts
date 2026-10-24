@@ -1,4 +1,4 @@
-import { and, desc, eq, gt, inArray, sql, type SQL } from 'drizzle-orm';
+import { and, desc, eq, gt, inArray, isNull, sql, type SQL } from 'drizzle-orm';
 import type { SQLiteSelect } from 'drizzle-orm/sqlite-core';
 import { averageRating } from '#lib/rating.ts';
 import type { DB } from './db/client';
@@ -89,6 +89,23 @@ export type FeedItem = Feed['items'][number];
 
 export function latestFeed(db: DB, opts: FeedOptions = {}) {
 	return feed(db, undefined, [desc(stories.publishedAt)], opts);
+}
+
+/** The Ficly archive's last story was published before this; every later one was written here. */
+export const ARCHIVE_ENDED = new Date('2015-07-01T00:00:00Z');
+
+/**
+ * Stories written on MinnowPress, newest first, leaving out the Ficly archive. The date bound
+ * lets the (status, published_at) index stop where the archive starts, so a short list doesn't
+ * walk 32,000 archive stories looking for more.
+ */
+export function memberFeed(db: DB, opts: FeedOptions = {}) {
+	return feed(
+		db,
+		and(gt(stories.publishedAt, ARCHIVE_ENDED), isNull(stories.archiveId)),
+		[desc(stories.publishedAt)],
+		opts
+	);
 }
 
 /**

@@ -11,7 +11,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { recentActivity } from './desk';
 import * as schema from './db/schema';
 import { follows, stories, users } from './db/schema';
-import { authorFeed, challengeFeed, followingFeed, latestFeed } from './feeds';
+import { authorFeed, challengeFeed, followingFeed, latestFeed, memberFeed } from './feeds';
 
 let client: Client;
 let ids: { archive: number; me: number; friend: number };
@@ -123,6 +123,11 @@ describe('query plans with one account owning nearly every story', () => {
 	it('reads a challenge’s entries from the challenge index', async () => {
 		const [feed] = await plans((db) => challengeFeed(db, 1));
 		expect(feed).toMatch(/stories_challenge_idx/);
+	});
+
+	it('reads stories written here from the published index, stopping at the archive', async () => {
+		const [feed] = await plans((db) => memberFeed(db));
+		expect(feed).toMatch(/stories_status_published_idx \(status=\? AND published_at>\?\)/);
 	});
 
 	it('still serves the site-wide latest feed from the published index', async () => {

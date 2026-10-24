@@ -9,6 +9,7 @@ import {
 	challengeFeed,
 	followingFeed,
 	latestFeed,
+	memberFeed,
 	ftsQuery,
 	likePattern,
 	SEARCH_MAX_TERMS,
@@ -148,6 +149,25 @@ describe('archiveAuthorFeed', () => {
 			})
 			.where(eq(stories.id, a.id));
 		expect(ids(await archiveAuthorFeed(db, 'https://ficly.com/authors/kevin/'))).toEqual([a.id]);
+	});
+});
+
+describe('memberFeed', () => {
+	it('lists stories written here, leaving out the Ficly archive', async () => {
+		const mine = await createStory(db, alice.id, input());
+		const imported = await createStory(db, alice.id, input());
+		const old = await createStory(db, alice.id, input());
+		await db
+			.update(stories)
+			.set({ archiveId: 1, archiveUrl: 'u', publishedAt: new Date('2012-05-01') })
+			.where(eq(stories.id, imported.id));
+		// Belt and braces: a story dated in the archive's years is the archive's.
+		await db
+			.update(stories)
+			.set({ publishedAt: new Date('2013-01-01') })
+			.where(eq(stories.id, old.id));
+		expect(ids(await memberFeed(db))).toEqual([mine.id]);
+		expect(ids(await latestFeed(db))).toEqual([mine.id, old.id, imported.id]);
 	});
 });
 

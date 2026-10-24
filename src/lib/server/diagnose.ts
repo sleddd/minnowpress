@@ -38,6 +38,7 @@ import {
 	popularFeed,
 	tagFeed
 } from './feeds';
+import { homeColumns } from './home';
 import { searchAll } from './search';
 import { followCounts, listComments } from './social';
 import { countPublishedStories, getChain, getStory, getUserStories } from './stories';
@@ -66,13 +67,11 @@ export const SCENARIOS: Record<string, (db: DB, pick: DB) => Promise<unknown>> =
 	'session check': (db) => validateSession(db, 'not-a-real-token'),
 	home: async (db) => {
 		await ensureCurrentChallenge(db);
-		const opts = { pageSize: 6 };
 		const prompt = await todaysPrompt(db);
 		await Promise.all([
-			popularFeed(db, opts),
-			latestFeed(db, opts),
+			homeColumns(db, null),
 			popularTags(db, 14),
-			pastChallenges(db, 6),
+			pastChallenges(db, 30),
 			prompt ? countEntries(db, prompt.id) : null
 		]);
 	},
