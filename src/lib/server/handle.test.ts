@@ -1,8 +1,9 @@
 import { eq } from 'drizzle-orm';
 import { describe, expect, it, vi } from 'vitest';
 import { createSession, SESSION_COOKIE } from './auth';
-import { sessions, users } from './db/schema';
+import { referralVisits, sessions, users } from './db/schema';
 import { createHandle } from './handle';
+import { REFERRAL_COOKIE } from './referrals';
 import { THEME_COOKIE } from './theme-cookie';
 import { createTestDb, makeUser } from './testing/db';
 
@@ -77,6 +78,14 @@ describe('createHandle', () => {
 		// The API answers to its own secret; a script calling it with curl is not a crawler.
 		const api = fakeEvent(undefined, { userAgent: 'curl/8.7.1', path: '/api/diagnose' });
 		expect((await run(createHandle(db, { secure: true }), api)).response.status).toBe(200);
+	});
+
+	it('counts a visit by a ?ref= link', async () => {
+		const db = await createTestDb();
+		const event = fakeEvent(undefined, { path: '/?ref=bookfair' });
+		await run(createHandle(db, { secure: true }), event);
+		expect(await db.select().from(referralVisits)).toMatchObject([{ code: 'bookfair' }]);
+		expect(event.cookies.get(REFERRAL_COOKIE)).toBe('bookfair');
 	});
 
 	it('clears an invalid session cookie', async () => {

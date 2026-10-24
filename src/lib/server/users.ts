@@ -66,7 +66,7 @@ export async function suggestUsername(db: DB, email: string): Promise<string> {
 export async function findOrCreateUserByEmail(
 	db: DB,
 	rawEmail: string,
-	opts: { adminEmails?: string[] } = {}
+	opts: { adminEmails?: string[]; referralCode?: string | null } = {}
 ): Promise<{ user: User; created: boolean }> {
 	const email = normalizeEmail(rawEmail);
 	const existing = await db.query.users.findFirst({ where: eq(users.email, email) });
@@ -81,7 +81,8 @@ export async function findOrCreateUserByEmail(
 			email,
 			username,
 			displayName: username,
-			role: opts.adminEmails?.includes(email) ? 'admin' : 'user'
+			role: opts.adminEmails?.includes(email) ? 'admin' : 'user',
+			referralCode: opts.referralCode ?? null
 		})
 		.returning();
 	return { user, created: true };

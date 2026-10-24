@@ -113,6 +113,13 @@
       "when": 1792735500584,
       "tag": "0015_two_factor",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "6",
+      "when": 1792801201857,
+      "tag": "0016_referrals",
+      "breakpoints": true
     }
   ]
 }

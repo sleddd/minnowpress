@@ -2,14 +2,16 @@ import type { Handle } from '@sveltejs/kit/hooks';
 import { SESSION_COOKIE, sessionCookieOptions, validateSession } from './auth';
 import type { DB } from './db/client';
 import { BLOCKED_CRAWLER_RESPONSE, crawlerChecked, isBlockedCrawler } from './bots';
+import { recordReferral } from './referrals';
 import { applySecurityHeaders } from './security';
 import { staffLock } from './two-factor';
 import { THEME_COOKIE, requestTheme } from './theme-cookie';
 
 /**
  * Turns away crawlers other than the allowed search engines, resolves the signed-in user from
- * the session cookie, applies their theme, and adds security headers. Staff who haven't passed
- * two-step sign-in on this session are treated as ordinary members until they do.
+ * the session cookie, counts ?ref= visits, applies their theme, and adds security headers.
+ * Staff who haven't passed two-step sign-in on this session are treated as ordinary members
+ * until they do.
  */
 export function createHandle(db: DB, opts: { secure: boolean }): Handle {
 	return async ({ event, resolve }) => {
@@ -43,6 +45,8 @@ export function createHandle(db: DB, opts: { secure: boolean }): Handle {
 				event.cookies.delete(SESSION_COOKIE, { path: '/' });
 			}
 		}
+
+		if (crawlerChecked(event.url.pathname)) await recordReferral(db, event, opts.secure);
 
 		// Members pick a theme in Settings or with the sun; visitors' sun clicks live in a cookie;
 		// everyone else gets the light default. Rendered

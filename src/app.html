@@ -13,7 +13,18 @@
 				dataLayer.push(arguments);
 			}
 			gtag('js', new Date());
-			gtag('config', 'G-B7WZHYN42F');
+			// A ?ref= link (the QR code on a business card) reports as its own campaign:
+			// source and campaign are the code, medium is "ref". Real UTM tags win.
+			var gaUrl = new URL(location.href);
+			var ref = gaUrl.searchParams.get('ref');
+			if (ref && !gaUrl.searchParams.has('utm_source')) {
+				gaUrl.searchParams.set('utm_source', ref);
+				gaUrl.searchParams.set('utm_medium', 'ref');
+				gaUrl.searchParams.set('utm_campaign', ref);
+				gtag('config', 'G-B7WZHYN42F', { page_location: gaUrl.href });
+			} else {
+				gtag('config', 'G-B7WZHYN42F');
+			}
 		</script>
 		%sveltekit.head%
 	</head>

@@ -24,6 +24,11 @@
 						href: '/admin/blog',
 						label: 'Blog',
 						current: page.url.pathname.startsWith('/admin/blog')
+					},
+					{
+						href: '/admin/referrals',
+						label: 'Referrals',
+						current: page.url.pathname === '/admin/referrals'
 					}
 				]
 			: [])

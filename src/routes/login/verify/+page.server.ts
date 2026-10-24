@@ -5,6 +5,7 @@ import { consumeLoginToken, peekLoginToken, safeNext, signIn } from '#lib/server
 import { db } from '#lib/server/db/index.ts';
 import { ForbiddenError } from '#lib/server/errors.ts';
 import { formString } from '#lib/server/forms.ts';
+import { referralFromCookies } from '#lib/server/referrals.ts';
 import { afterSignIn } from '#lib/server/two-factor.ts';
 import { findOrCreateUserByEmail } from '#lib/server/users.ts';
 import type { Actions, PageServerLoad } from './$types';
@@ -27,7 +28,10 @@ export const actions: Actions = {
 
 		let result;
 		try {
-			result = await findOrCreateUserByEmail(db, email, { adminEmails: ADMIN_EMAILS });
+			result = await findOrCreateUserByEmail(db, email, {
+				adminEmails: ADMIN_EMAILS,
+				referralCode: referralFromCookies(cookies)
+			});
 		} catch (e) {
 			if (e instanceof ForbiddenError) redirect(303, '/login?error=link');
 			throw e;

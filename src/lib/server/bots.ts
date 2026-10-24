@@ -23,6 +23,11 @@ const allowed = new RegExp(ALLOWED_CRAWLERS.join('|'), 'i');
 const crawler =
 	/bot|crawl|spider|slurp|scrap|fetch|python|go-http-client|java\/|libwww|httpclient|okhttp|curl\/|wget\/|facebookexternalhit|bytespider|petalbot|ahrefs|semrush|mj12|dataforseo|yandex|baidu/i;
 
+/** True when the request announces itself as any crawler, allowed or not. */
+export function isCrawler(userAgent: string | null | undefined): boolean {
+	return Boolean(userAgent) && crawler.test(userAgent!);
+}
+
 /** True when the request comes from a crawler that isn't one of the allowed search engines. */
 export function isBlockedCrawler(userAgent: string | null | undefined): boolean {
 	if (!userAgent) return false;

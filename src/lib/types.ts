@@ -227,3 +227,12 @@ export interface ModerationLogView {
 	/** What was acted on, with a link when it still exists. */
 	target: { label: string; href: string | null };
 }
+
+/** One ?ref= code (a QR code, a flyer) and what came of it. */
+export interface ReferralView {
+	code: string;
+	visits: number;
+	signups: number;
+	firstVisit: Date | null;
+	lastVisit: Date | null;
+}

@@ -3,7 +3,8 @@ import {
 	ALLOWED_CRAWLERS,
 	BLOCKED_CRAWLER_RESPONSE,
 	crawlerChecked,
-	isBlockedCrawler
+	isBlockedCrawler,
+	isCrawler
 } from './bots';
 
 const chrome =
@@ -12,6 +13,17 @@ const headless = chrome.replace('Chrome/', 'HeadlessChrome/');
 const iphone =
 	'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1';
 const firefox = 'Mozilla/5.0 (X11; Linux x86_64; rv:130.0) Gecko/20100101 Firefox/130.0';
+
+describe('isCrawler', () => {
+	it('spots allowed and blocked crawlers alike, but never browsers', () => {
+		expect(
+			isCrawler('Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)')
+		).toBe(true);
+		expect(isCrawler('curl/8.4.0')).toBe(true);
+		for (const ua of [chrome, headless, iphone, firefox, '', null, undefined])
+			expect(isCrawler(ua), String(ua)).toBe(false);
+	});
+});
 
 describe('isBlockedCrawler', () => {
 	it('lets browsers through, including headless ones and no user agent at all', () => {

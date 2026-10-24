@@ -57,11 +57,14 @@ export const users = sqliteTable(
 		totpLastStep: integer('totp_last_step'),
 		twoFactorFailures: integer('two_factor_failures').notNull().default(0),
 		twoFactorFailedAt: integer('two_factor_failed_at', { mode: 'timestamp_ms' }),
+		// The ?ref= code (a QR code, a flyer) the member last arrived by before signing up, if any.
+		referralCode: text('referral_code'),
 		createdAt: createdAt()
 	},
 	(t) => [
 		index('users_former_username_idx').on(t.formerUsername),
-		index('users_published_count_idx').on(t.isArchive, t.publishedCount)
+		index('users_published_count_idx').on(t.isArchive, t.publishedCount),
+		index('users_referral_code_idx').on(t.referralCode)
 	]
 );
 
@@ -378,6 +381,17 @@ export const jobRuns = sqliteTable('job_runs', {
 	name: text('name').primaryKey(),
 	ranAt: integer('ran_at', { mode: 'timestamp_ms' }).notNull()
 });
+
+/** One arrival by a ?ref= link, counted once per visitor per code (see referrals.ts). */
+export const referralVisits = sqliteTable(
+	'referral_visits',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		code: text('code').notNull(),
+		createdAt: createdAt()
+	},
+	(t) => [index('referral_visits_code_idx').on(t.code)]
+);
 
 export const MODERATION_ACTIONS = [
 	'remove_story',

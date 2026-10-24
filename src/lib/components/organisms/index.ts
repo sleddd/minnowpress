@@ -47,3 +47,4 @@ export { default as ChallengeManager } from './ChallengeManager/ChallengeManager
 export { default as ArchiveAuthor } from './ArchiveAuthor/ArchiveAuthor.svelte';
 export { default as TwoFactorPrompt } from './TwoFactorPrompt/TwoFactorPrompt.svelte';
 export { default as TwoFactorSettings } from './TwoFactorSettings/TwoFactorSettings.svelte';
+export { default as ReferralTable } from './ReferralTable/ReferralTable.svelte';
