@@ -18,7 +18,8 @@ export const actions: Actions = {
 		const data = await request.formData();
 		const reportId = formInt(data, 'reportId');
 		const action = formString(data, 'action');
-		if (!reportId || (action !== 'remove' && action !== 'dismiss')) return fail(400);
+		if (!reportId || (action !== 'remove' && action !== 'mature' && action !== 'dismiss'))
+			return fail(400);
 		try {
 			await resolveReport(db, mod.id, reportId, action);
 		} catch (e) {

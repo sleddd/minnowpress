@@ -13,6 +13,8 @@
 	let { data, form }: PageProps = $props();
 
 	const story = $derived(data.story);
+	// Rating returns the new count without reloading the page (see RatingInput).
+	let ratingsCount = $derived(data.story.ratingsCount);
 	const published = $derived(story.status === 'published');
 	const reported = $derived(
 		Boolean(form && 'reported' in form && form.reported?.targetType === 'story')
@@ -30,7 +32,7 @@
 		tags={story.tags}
 		publishedAt={published ? story.publishedAt : null}
 		editedAt={story.editedAt}
-		ratingsCount={story.ratingsCount}
+		{ratingsCount}
 		challenge={story.challenge}
 		archive={story.archive}
 	/>
@@ -64,5 +66,6 @@
 		bookmarked={data.bookmarked}
 		matureHidden={data.matureHidden}
 		{reported}
+		onrated={(totals) => (ratingsCount = totals.count)}
 	/>
 </ArticleLayout>

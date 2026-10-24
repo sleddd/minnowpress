@@ -25,7 +25,9 @@
 	interface Props {
 		appName: string;
 		values: EditorValues;
-		errors?: Partial<Record<'title' | 'body' | 'tags' | 'challenge' | 'form', string>>;
+		errors?: Partial<
+			Record<'title' | 'body' | 'tags' | 'challenge' | 'form' | 'adultConfirmed', string>
+		>;
 		/** Set when writing a prequel or sequel. */
 		continuing?: {
 			relation: Relation;
@@ -37,6 +39,10 @@
 		editId?: number | null;
 		/** Editing a story that's already published: it stays published, so no draft option. */
 		editingPublished?: boolean;
+		/** A moderator marked the story mature; the author can't untick it. */
+		matureLocked?: boolean;
+		/** Already confirmed they're 18 or older, so marking a story mature asks nothing more. */
+		adultConfirmed?: boolean;
 	}
 
 	let {
@@ -46,7 +52,9 @@
 		continuing = null,
 		challenges = [],
 		editId = null,
-		editingPublished = false
+		editingPublished = false,
+		matureLocked = false,
+		adultConfirmed = false
 	}: Props = $props();
 
 	// The editor owns its fields once mounted; the page re-keys it when server values change.
@@ -160,13 +168,34 @@
 
 	<div class="options">
 		<div class="checks">
-			<CheckboxField
-				id="isMature"
-				name="isMature"
-				label="Mature content"
-				hint="Hidden from readers who haven't opted in."
-				bind:checked={isMature}
-			/>
+			{#if matureLocked}
+				<CheckboxField
+					id="isMature"
+					name="isMature"
+					label="Mature content"
+					hint="A moderator marked this story mature."
+					checked
+					disabled
+				/>
+			{:else}
+				<CheckboxField
+					id="isMature"
+					name="isMature"
+					label="Mature content"
+					hint="Hidden from readers who haven't opted in."
+					bind:checked={isMature}
+				/>
+				{#if isMature && !adultConfirmed}
+					<CheckboxField
+						id="adultConfirmed"
+						name="adultConfirmed"
+						label="I’m 18 or older"
+						hint="Only adults may post mature stories."
+						required
+						error={errors.adultConfirmed}
+					/>
+				{/if}
+			{/if}
 			{#if !editingPublished}
 				<CheckboxField
 					id="saveDraft"
@@ -212,8 +241,6 @@
 	.rules {
 		color: var(--color-accent);
 		font-style: italic;
-		text-decoration: underline dotted;
-		text-underline-offset: 0.25em;
 	}
 
 	/* The writing area: a dashed sheet with the counter along the bottom. */

@@ -77,6 +77,5 @@
 
 	.all :global(a) {
 		font-style: italic;
-		text-decoration: underline;
 	}
 </style>

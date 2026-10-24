@@ -6,7 +6,10 @@
 		value?: string;
 	}
 
-	let { options, value = $bindable(options[0]?.value ?? ''), ...rest }: Props = $props();
+	// No fallback value: when nothing is bound, Svelte takes the selection from the page as it
+	// starts up (the first option, or whatever the reader already picked while it loaded)
+	// instead of resetting it.
+	let { options, value = $bindable(), ...rest }: Props = $props();
 </script>
 
 <select class="select" bind:value {...rest}>

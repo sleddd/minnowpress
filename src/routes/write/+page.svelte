@@ -28,6 +28,8 @@
 			challenges={data.challenges}
 			editId={data.editId}
 			editingPublished={data.editingPublished}
+			matureLocked={data.matureLocked}
+			adultConfirmed={data.adultConfirmed}
 		/>
 	{/key}
 </EditorLayout>

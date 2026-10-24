@@ -59,17 +59,9 @@
 		font-size: var(--text-lg);
 	}
 
-	.story:hover {
-		text-decoration: underline;
-		text-underline-offset: 0.18em;
-	}
-
 	.default:hover,
 	.title:hover {
 		color: var(--color-accent-hover);
-		text-decoration: underline;
-		text-underline-offset: 0.18em;
-		text-decoration-thickness: 1px;
 	}
 
 	.subtle {

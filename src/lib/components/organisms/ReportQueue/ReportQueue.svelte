@@ -13,6 +13,7 @@
 
 	const reasonLabel: Record<ReportView['reason'], string> = {
 		ai_generated: 'Suspected AI',
+		mature: 'Should be mature',
 		spam: 'Spam',
 		abuse: 'Abuse',
 		other: 'Other'
@@ -47,6 +48,11 @@
 						<Button type="submit" name="action" value="remove" variant="danger" size="sm"
 							>Remove {report.targetType}</Button
 						>
+						{#if report.targetType === 'story' && report.target}
+							<Button type="submit" name="action" value="mature" variant="secondary" size="sm"
+								>Mark mature</Button
+							>
+						{/if}
 						<Button type="submit" name="action" value="dismiss" variant="secondary" size="sm"
 							>Dismiss</Button
 						>

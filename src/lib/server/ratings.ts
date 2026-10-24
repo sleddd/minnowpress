@@ -18,13 +18,15 @@ export async function getUserRating(
 
 /** Recomputes a story's totals: the archive baseline plus every member rating. */
 async function syncTotals(db: DB, storyId: number) {
-	await db
+	const [totals] = await db
 		.update(stories)
 		.set({
 			ratingsCount: sql`${stories.archiveRatingsCount} + (select count(*) from ${ratings} where ${ratings.storyId} = ${storyId})`,
 			ratingsTotal: sql`${stories.archiveRatingsTotal} + (select coalesce(sum(${ratings.score}), 0) from ${ratings} where ${ratings.storyId} = ${storyId})`
 		})
-		.where(eq(stories.id, storyId));
+		.where(eq(stories.id, storyId))
+		.returning({ count: stories.ratingsCount, total: stories.ratingsTotal });
+	return totals;
 }
 
 /** Rates a published story 1–5, replacing any earlier rating by the same reader. Authors can't rate their own. */
@@ -41,12 +43,6 @@ export async function rateStory(db: DB, userId: number, storyId: number, score: 
 			target: [ratings.userId, ratings.storyId],
 			set: { score, updatedAt: new Date() }
 		});
-	await syncTotals(db, storyId);
-
-	const updated = await db.query.stories.findFirst({ where: eq(stories.id, storyId) });
-	return {
-		score,
-		count: updated!.ratingsCount,
-		average: averageRating(updated!.ratingsCount, updated!.ratingsTotal)
-	};
+	const { count, total } = await syncTotals(db, storyId);
+	return { score, count, average: averageRating(count, total) };
 }

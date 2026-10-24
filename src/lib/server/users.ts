@@ -104,6 +104,29 @@ export interface ProfileInput {
 	bio: string;
 	website: string;
 	showMature: boolean;
+	/** Ticked "I'm 18 or older"; needed once, to turn mature stories on. */
+	adultConfirmed?: boolean;
+}
+
+export const ADULT_REQUIRED = {
+	read: 'Confirm you’re 18 or older to see mature stories.',
+	write: 'Confirm you’re 18 or older to post a mature story.'
+};
+
+/**
+ * Mature stories, to read or to write, are for adults. A member confirms it once; the date is
+ * kept, and they aren't asked again. Throws unless they have confirmed, now or before.
+ */
+export async function confirmAdult(
+	db: DB,
+	user: Pick<User, 'id' | 'adultConfirmedAt'>,
+	confirmed: boolean,
+	purpose: keyof typeof ADULT_REQUIRED,
+	now = new Date()
+): Promise<void> {
+	if (user.adultConfirmedAt) return;
+	if (!confirmed) throw new ValidationError({ adultConfirmed: ADULT_REQUIRED[purpose] });
+	await db.update(users).set({ adultConfirmedAt: now }).where(eq(users.id, user.id));
 }
 
 /** "" → null (no website); a valid http(s) address → its URL; anything else → undefined (invalid). */
@@ -143,6 +166,8 @@ export async function updateProfile(
 		errors.bio = `Bios are ${BIO_MAX} characters or less.`;
 	const website = normalizeWebsite(input.website);
 	if (website === undefined) errors.website = 'Enter a valid web address.';
+	const confirmingAdult = input.showMature && !current?.adultConfirmedAt;
+	if (confirmingAdult && !input.adultConfirmed) errors.adultConfirmed = ADULT_REQUIRED.read;
 	if (Object.keys(errors).length) throw new ValidationError(errors);
 
 	// A rename holds the old name for a while (see USERNAME_HOLD_DAYS).
@@ -155,6 +180,7 @@ export async function updateProfile(
 			bio: input.bio.trim(),
 			website,
 			showMature: input.showMature,
+			...(confirmingAdult ? { adultConfirmedAt: now } : {}),
 			...(renamed ? { formerUsername: current.username, usernameChangedAt: now } : {})
 		})
 		.where(eq(users.id, userId))

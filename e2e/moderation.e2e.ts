@@ -137,6 +137,7 @@ test('readers who hide mature stories cannot act on one they cannot see', async 
 	await signUp(page, 'gina@example.com', 'gina');
 	await page.goto('/write');
 	await page.getByRole('checkbox', { name: /mature/i }).check();
+	await page.getByRole('checkbox', { name: 'I’m 18 or older' }).check();
 	await writeStory(page, 'After Dark', 'A story for readers who opted in to mature stories.');
 	const storyUrl = page.url();
 	await signOut(page);
@@ -154,4 +155,72 @@ test('readers who hide mature stories cannot act on one they cannot see', async 
 			error: { message: expect.stringContaining('mature') }
 		});
 	}
+});
+
+test('a moderator marks a reported story mature, and it leaves the safe space', async ({
+	page
+}) => {
+	await signUp(page, 'gail@example.com', 'gail');
+	await page.goto('/write');
+	await writeStory(page, 'Midnight Undressing', 'She let the robe fall to the floor.');
+	const storyUrl = page.url();
+	await signOut(page);
+
+	await signUp(page, 'hank@example.com', 'hank');
+	await page.goto(storyUrl);
+	await page.getByRole('button', { name: 'Rate 3 out of 5' }).click();
+	await expect(page.getByRole('button', { name: 'Rate 3 out of 5' })).toHaveAttribute(
+		'aria-pressed',
+		'true'
+	);
+	// Straight after rating, while the page may still be starting up: the reason must stick.
+	await page.getByText('Report', { exact: true }).click();
+	await page.getByRole('combobox', { name: 'Reason' }).selectOption('mature');
+	await page.waitForLoadState('networkidle');
+	await expect(page.getByRole('combobox', { name: 'Reason' })).toHaveValue('mature');
+	await page.getByRole('button', { name: 'Send report' }).click();
+	await expect(page.getByText('A moderator will take a look.')).toBeVisible();
+	// The rating shows in the reader's activity, and older activity has its own page.
+	await page.goto('/desk');
+	await expect(page.getByText(/You rated\s+Midnight Undressing\s+3 fish/)).toBeVisible();
+	await page.getByRole('link', { name: 'All activity' }).click();
+	await expect(page.getByRole('heading', { level: 1, name: 'Your activity' })).toBeVisible();
+	await expect(page.getByText(/You rated\s+Midnight Undressing\s+3 fish/)).toBeVisible();
+	await signOut(page);
+
+	await signInAsStaff(page, 'mona@example.com', 'mod');
+	await page.goto('/admin/reports');
+	await expect(page.getByText('Should be mature')).toBeVisible();
+	await page.getByRole('button', { name: 'Mark mature' }).click();
+	await expect(page.getByRole('heading', { name: 'All clear' })).toBeVisible();
+	await page.goto('/admin/log');
+	await expect(page.getByText('Marked mature')).toBeVisible();
+	await signOut(page);
+
+	// Visitors no longer see it in the feeds, and its text is withheld.
+	await page.goto('/stories');
+	await expect(page.getByRole('link', { name: 'Midnight Undressing' })).toHaveCount(0);
+	await page.goto(storyUrl);
+	await expect(page.getByText('She let the robe fall')).toHaveCount(0);
+
+	// The author can't take the mark off.
+	await signIn(page, 'gail@example.com');
+	await page.goto(`/write?edit=${storyUrl.split('/').pop()}`);
+	await expect(page.getByRole('checkbox', { name: 'Mature content' })).toBeDisabled();
+	await expect(page.getByText('A moderator marked this story mature.')).toBeVisible();
+});
+
+test('authors confirm they’re 18 or older to post a mature story', async ({ page }) => {
+	await signUp(page, 'ivy@example.com', 'ivy');
+	await page.goto('/write');
+	await page.getByRole('textbox', { name: 'Title' }).fill('After Hours');
+	await page
+		.getByRole('textbox', { name: 'Story' })
+		.fill('The bar emptied out and the two of them stayed on, long past closing time, talking.');
+	await page.getByRole('checkbox', { name: 'Mature content' }).check();
+	await expect(page.getByRole('checkbox', { name: 'I’m 18 or older' })).toBeVisible();
+	await page.getByRole('checkbox', { name: 'I’m 18 or older' }).check();
+	await page.getByRole('button', { name: 'Publish' }).click();
+	await expect(page.getByRole('heading', { level: 1, name: 'After Hours' })).toBeVisible();
+	await expect(page.getByText('Mature', { exact: true })).toBeVisible();
 });

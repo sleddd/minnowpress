@@ -62,4 +62,17 @@ describe('Button', () => {
 		await expect.element(button).toHaveClass('cta');
 		await expect.element(button).toHaveClass('block');
 	});
+
+	it('has ribbon and dashed variants', async () => {
+		const ribbon = await render(Button, { variant: 'ribbon', children: text('Save profile') });
+		const r = ribbon.container.querySelector('button')!;
+		expect(getComputedStyle(r).clipPath).toContain('polygon');
+		expect(getComputedStyle(r).fontStyle).toBe('italic');
+		const dashed = await render(Button, { variant: 'dashed', children: text('Save theme') });
+		expect(getComputedStyle(dashed.container.querySelector('button')!).borderTopStyle).toBe(
+			'dashed'
+		);
+		const off = await render(Button, { variant: 'dashed-danger', children: text('Turn off') });
+		expect(off.container.querySelector('button')?.classList.contains('dashed-danger')).toBe(true);
+	});
 });

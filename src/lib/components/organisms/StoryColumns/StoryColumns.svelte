@@ -146,10 +146,6 @@
 		font-style: italic;
 	}
 
-	.more :global(a) {
-		text-decoration: underline;
-	}
-
 	.empty {
 		display: grid;
 		gap: var(--space-3);

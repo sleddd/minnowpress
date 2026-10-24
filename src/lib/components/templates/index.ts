@@ -8,3 +8,4 @@ export { default as ArticleLayout } from './ArticleLayout/ArticleLayout.svelte';
 export { default as HomeLayout } from './HomeLayout/HomeLayout.svelte';
 export { default as ProfileLayout } from './ProfileLayout/ProfileLayout.svelte';
 export { default as DeskLayout } from './DeskLayout/DeskLayout.svelte';
+export { default as SettingsLayout } from './SettingsLayout/SettingsLayout.svelte';

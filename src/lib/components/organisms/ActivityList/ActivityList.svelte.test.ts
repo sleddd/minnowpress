@@ -17,9 +17,17 @@ describe('ActivityList', () => {
 					at: new Date('2026-10-21T11:00:00Z'),
 					actor,
 					story,
-					continuation: { id: 2, title: 'Negotiation' }
+					continuation: { id: 2, title: 'Negotiation' },
+					score: null
 				},
-				{ kind: 'comment', at: new Date('2026-10-20T11:00:00Z'), actor, story, continuation: null }
+				{
+					kind: 'comment',
+					at: new Date('2026-10-20T11:00:00Z'),
+					actor,
+					story,
+					continuation: null,
+					score: null
+				}
 			]
 		});
 		await expect
@@ -39,5 +47,43 @@ describe('ActivityList', () => {
 	it('explains the empty state', async () => {
 		const screen = await render(ActivityList, { items: [] });
 		await expect.element(screen.getByText(/Nothing yet/)).toBeInTheDocument();
+	});
+
+	it('describes ratings, mine and other people’s, and links to more', async () => {
+		const screen = await render(ActivityList, {
+			now,
+			more: { href: '/desk/activity', label: 'All activity' },
+			items: [
+				{
+					kind: 'rated',
+					at: new Date('2026-10-21T11:00:00Z'),
+					actor: null,
+					story,
+					continuation: null,
+					score: 4
+				},
+				{
+					kind: 'rating',
+					at: new Date('2026-10-21T10:00:00Z'),
+					actor,
+					story: { id: 3, title: 'Mine' },
+					continuation: null,
+					score: 5
+				}
+			]
+		});
+		await expect.element(screen.getByText(/You rated\s+Duck Hunting\s+4 fish/)).toBeInTheDocument();
+		await expect.element(screen.getByText(/Henjo\s+rated\s+Mine\s+5 fish/)).toBeInTheDocument();
+		await expect
+			.element(screen.getByRole('link', { name: 'All activity' }))
+			.toHaveAttribute('href', '/desk/activity');
+		await expectAccessible(screen.container);
+	});
+
+	it('can head its own page', async () => {
+		const screen = await render(ActivityList, { items: [], title: 'Your activity', level: 1 });
+		await expect
+			.element(screen.getByRole('heading', { level: 1, name: 'Your activity' }))
+			.toBeInTheDocument();
 	});
 });

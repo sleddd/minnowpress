@@ -57,6 +57,8 @@ export const users = sqliteTable(
 		totpLastStep: integer('totp_last_step'),
 		twoFactorFailures: integer('two_factor_failures').notNull().default(0),
 		twoFactorFailedAt: integer('two_factor_failed_at', { mode: 'timestamp_ms' }),
+		// When the member confirmed they're 18 or older, to read or write mature stories.
+		adultConfirmedAt: integer('adult_confirmed_at', { mode: 'timestamp_ms' }),
 		// The ?ref= code (a QR code, a flyer) the member last arrived by before signing up, if any.
 		referralCode: text('referral_code'),
 		createdAt: createdAt()
@@ -187,6 +189,8 @@ export const stories = sqliteTable(
 			.notNull()
 			.default('draft'),
 		isMature: integer('is_mature', { mode: 'boolean' }).notNull().default(false),
+		// Set when a moderator marks the story mature: it stays mature whatever the author saves.
+		matureLocked: integer('mature_locked', { mode: 'boolean' }).notNull().default(false),
 		parentId: integer('parent_id').references((): AnySQLiteColumn => stories.id, {
 			onDelete: 'set null'
 		}),
@@ -289,7 +293,12 @@ export const ratings = sqliteTable(
 			.notNull()
 			.$defaultFn(() => new Date())
 	},
-	(t) => [primaryKey({ columns: [t.userId, t.storyId] }), index('ratings_story_idx').on(t.storyId)]
+	(t) => [
+		primaryKey({ columns: [t.userId, t.storyId] }),
+		index('ratings_story_idx').on(t.storyId),
+		// A member's own ratings, newest first, for their activity.
+		index('ratings_user_updated_idx').on(t.userId, t.updatedAt)
+	]
 );
 
 export const bookmarks = sqliteTable(
@@ -364,7 +373,9 @@ export const reports = sqliteTable(
 			.references(() => users.id, { onDelete: 'cascade' }),
 		targetType: text('target_type', { enum: ['story', 'comment'] }).notNull(),
 		targetId: integer('target_id').notNull(),
-		reason: text('reason', { enum: ['ai_generated', 'spam', 'abuse', 'other'] }).notNull(),
+		reason: text('reason', {
+			enum: ['ai_generated', 'mature', 'spam', 'abuse', 'other']
+		}).notNull(),
 		note: text('note').notNull().default(''),
 		status: text('status', { enum: ['open', 'resolved', 'dismissed'] })
 			.notNull()
@@ -399,7 +410,9 @@ export const MODERATION_ACTIONS = [
 	'delete_comment',
 	'suspend_user',
 	'unsuspend_user',
-	'dismiss_report'
+	'dismiss_report',
+	'mark_mature',
+	'unmark_mature'
 ] as const;
 
 /** Who did what, as a moderator. Rows are never deleted. */

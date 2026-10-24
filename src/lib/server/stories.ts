@@ -257,7 +257,8 @@ export async function updateStory(
 		.set({
 			title: input.title.trim(),
 			body: normalizeBody(input.body),
-			isMature: input.isMature ?? false,
+			// A moderator's mature mark holds whatever the author sends.
+			isMature: existing.matureLocked || (input.isMature ?? false),
 			challengeId,
 			status: publish ? 'published' : 'draft',
 			publishedAt: wasPublished ? existing.publishedAt : publish ? now : null,
@@ -337,6 +338,32 @@ export async function restoreStory(db: DB, storyId: number, moderatorId: number)
 		action: 'restore_story',
 		targetType: 'story',
 		targetId: storyId
+	});
+}
+
+/**
+ * A moderator marks a story mature, which locks it so the author can't untick it, or clears
+ * the mark, which unlocks it and leaves it to the author again. Logged either way.
+ */
+export async function setStoryMature(
+	db: DB,
+	storyId: number,
+	moderatorId: number,
+	mature: boolean,
+	opts: { reportId?: number | null } = {}
+): Promise<void> {
+	const changed = await db
+		.update(stories)
+		.set(mature ? { isMature: true, matureLocked: true } : { isMature: false, matureLocked: false })
+		.where(and(eq(stories.id, storyId), ne(stories.status, 'removed')))
+		.returning({ id: stories.id });
+	if (changed.length === 0) throw new NotFoundError('Story not found');
+	await logModeration(db, {
+		actorId: moderatorId,
+		action: mature ? 'mark_mature' : 'unmark_mature',
+		targetType: 'story',
+		targetId: storyId,
+		reportId: opts.reportId
 	});
 }
 

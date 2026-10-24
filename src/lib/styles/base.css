@@ -26,6 +26,11 @@ body {
 	padding: 0;
 }
 
+/* Links are told apart by colour and italics; the site never underlines them. */
+:where(a) {
+	text-decoration: none;
+}
+
 img {
 	display: block;
 	max-width: 100%;

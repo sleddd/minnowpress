@@ -116,7 +116,7 @@ describe('query plans with one account owning nearly every story', () => {
 	it('finds continuations of the member’s stories from the member’s stories', async () => {
 		const statements = await plans((db) => recentActivity(db, ids.me));
 		for (const plan of statements) expect(walksArchive(plan), plan).toBe(false);
-		const events = await recentActivity(drizzle(client, { schema }), ids.me);
+		const { items: events } = await recentActivity(drizzle(client, { schema }), ids.me);
 		expect(events.map((e) => [e.kind, e.continuation?.title])).toEqual([['sequel', 'Sequel']]);
 	});
 

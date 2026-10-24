@@ -105,10 +105,6 @@
 		text-decoration: none;
 	}
 
-	h2 a:hover {
-		text-decoration: underline;
-	}
-
 	.read :global(a) {
 		font-style: italic;
 	}

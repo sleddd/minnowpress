@@ -6,9 +6,9 @@ import { ForbiddenError, NotFoundError, ValidationError } from './errors';
 import { assertUnderHourlyLimit } from './limits';
 import { logModeration } from './moderation-log';
 import { deleteComment } from './social';
-import { removeStory } from './stories';
+import { removeStory, setStoryMature } from './stories';
 
-export const REPORT_REASONS = ['ai_generated', 'spam', 'abuse', 'other'] as const;
+export const REPORT_REASONS = ['ai_generated', 'mature', 'spam', 'abuse', 'other'] as const;
 export type ReportReason = (typeof REPORT_REASONS)[number];
 export const REPORT_NOTE_MAX = 500;
 
@@ -32,6 +32,8 @@ async function targetExists(db: DB, type: Report['targetType'], id: number) {
 export async function fileReport(db: DB, reporterId: number, input: ReportInput): Promise<Report> {
 	if (!REPORT_REASONS.includes(input.reason))
 		throw new ValidationError({ reason: 'Pick a reason.' });
+	if (input.reason === 'mature' && input.targetType !== 'story')
+		throw new ValidationError({ reason: 'Only stories can be marked mature.' });
 	const note = (input.note ?? '').trim();
 	if (countGraphemes(note, REPORT_NOTE_MAX) > REPORT_NOTE_MAX)
 		throw new ValidationError({ note: `Notes are ${REPORT_NOTE_MAX} characters or less.` });
@@ -117,12 +119,16 @@ export async function resolveReport(
 	db: DB,
 	moderatorId: number,
 	reportId: number,
-	action: 'remove' | 'dismiss'
+	action: 'remove' | 'mature' | 'dismiss'
 ): Promise<void> {
 	const report = await db.query.reports.findFirst({ where: eq(reports.id, reportId) });
 	if (!report || report.status !== 'open') throw new NotFoundError('Open report not found');
+	if (action === 'mature' && report.targetType !== 'story')
+		throw new ValidationError({ action: 'Only stories can be marked mature.' });
 
-	if (action === 'remove') {
+	if (action === 'mature') {
+		await setStoryMature(db, report.targetId, moderatorId, true, { reportId });
+	} else if (action === 'remove') {
 		if (report.targetType === 'story')
 			await removeStory(db, report.targetId, moderatorId, { reportId });
 		else
@@ -144,7 +150,7 @@ export async function resolveReport(
 	await db
 		.update(reports)
 		.set({
-			status: action === 'remove' ? 'resolved' : 'dismissed',
+			status: action === 'dismiss' ? 'dismissed' : 'resolved',
 			resolvedBy: moderatorId,
 			resolvedAt: new Date()
 		})

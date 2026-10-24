@@ -8,6 +8,7 @@ import { ensureCurrentChallenge, getChallenge, openChallenges } from '#lib/serve
 import { db } from '#lib/server/db/index.ts';
 import { storyCounts } from '#lib/server/desk.ts';
 import { formBool, formInt, formString, queryInt, toActionFailure } from '#lib/server/forms.ts';
+import { confirmAdult } from '#lib/server/users.ts';
 import {
 	continueStory,
 	createStory,
@@ -61,6 +62,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			},
 			editId,
 			editingPublished: draft.status === 'published',
+			matureLocked: draft.matureLocked,
+			adultConfirmed: user.adultConfirmedAt !== null,
 			counts,
 			continuing: null,
 			challenges,
@@ -80,6 +83,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		values,
 		editId: null,
 		editingPublished: false,
+		matureLocked: false,
+		adultConfirmed: user.adultConfirmedAt !== null,
 		counts,
 		continuing,
 		challenges,
@@ -112,6 +117,7 @@ export const actions: Actions = {
 
 		let storyId: number;
 		try {
+			if (values.isMature) await confirmAdult(db, user, formBool(data, 'adultConfirmed'), 'write');
 			const story = editId
 				? await updateStory(db, user.id, editId, input)
 				: parentId

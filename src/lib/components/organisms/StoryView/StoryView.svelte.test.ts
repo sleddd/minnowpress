@@ -71,7 +71,7 @@ describe('StoryView', () => {
 			story: story({ isMature: true, author: { ...author, bio: '  ' } }),
 			...reader
 		});
-		await expect.element(screen.getByText('Mature')).toBeInTheDocument();
+		await expect.element(screen.getByText('Mature', { exact: true })).toBeInTheDocument();
 		await expect.element(screen.getByRole('link', { name: 'Read bio' })).not.toBeInTheDocument();
 	});
 
@@ -168,5 +168,30 @@ describe('StoryView', () => {
 		await expect
 			.element(out.getByRole('link', { name: 'Sign in', exact: true }))
 			.toHaveAttribute('href', '/login?next=/s/10');
+	});
+
+	it('lets moderators mark a story mature, or clear their mark', async () => {
+		const screen = await render(StoryView, { story: story(), ...reader, isModerator: true });
+		const mark = screen.getByRole('button', { name: 'Mark mature (moderator)' });
+		await expect.element(mark).toBeInTheDocument();
+		const form = mark.element().closest('form')!;
+		expect(form.getAttribute('action')).toBe('/s/10?/mature');
+		expect(form.querySelector<HTMLInputElement>('input[name="mature"]')?.value).toBe('true');
+		await screen.unmount();
+
+		const locked = await render(StoryView, {
+			story: story({ isMature: true, matureLocked: true }),
+			...reader,
+			isModerator: true
+		});
+		const clear = locked.getByRole('button', { name: 'Clear mature (moderator)' });
+		const clearForm = clear.element().closest('form')!;
+		expect(clearForm.querySelector<HTMLInputElement>('input[name="mature"]')?.value).toBe('false');
+		await locked.unmount();
+
+		const plain = await render(StoryView, { story: story(), ...reader });
+		await expect
+			.element(plain.getByRole('button', { name: /mature \(moderator\)/ }))
+			.not.toBeInTheDocument();
 	});
 });

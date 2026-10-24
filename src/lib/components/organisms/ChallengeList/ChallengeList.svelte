@@ -210,14 +210,10 @@
 		text-decoration: none;
 	}
 
-	h2 a:hover {
-		text-decoration: underline;
-	}
-
 	/* The open challenge's prompt, whole and wrapped as written; past ones list by title only. */
 	.prompt {
 		max-width: var(--measure);
-		font-size: var(--text-lg);
+		font-size: var(--text-md);
 		white-space: pre-line;
 		overflow-wrap: anywhere;
 	}
@@ -234,10 +230,6 @@
 	.links {
 		font-size: var(--text-lg);
 		font-style: italic;
-	}
-
-	.links :global(a) {
-		text-decoration: underline;
 	}
 
 	.countdown {

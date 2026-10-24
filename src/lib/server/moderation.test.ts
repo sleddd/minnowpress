@@ -127,6 +127,35 @@ describe('report limits', () => {
 	});
 });
 
+describe('reports that a story should be mature', () => {
+	it('marks the story mature and closes the report', async () => {
+		const r = await fileReport(db, reporter.id, {
+			targetType: 'story',
+			targetId: storyId,
+			reason: 'mature'
+		});
+		await resolveReport(db, mod.id, r.id, 'mature');
+		const story = await getStory(db, storyId);
+		expect(story).toMatchObject({ isMature: true, matureLocked: true });
+		expect(await listOpenReports(db)).toEqual([]);
+		const [entry] = await db.select().from(moderationLog);
+		expect(entry).toMatchObject({ action: 'mark_mature', reportId: r.id });
+	});
+
+	it('only applies to stories', async () => {
+		const comment = await addComment(db, reporter.id, storyId, 'hm');
+		await expect(
+			fileReport(db, reporter.id, { targetType: 'comment', targetId: comment.id, reason: 'mature' })
+		).rejects.toThrow(ValidationError);
+		const r = await fileReport(db, reporter.id, {
+			targetType: 'comment',
+			targetId: comment.id,
+			reason: 'abuse'
+		});
+		await expect(resolveReport(db, mod.id, r.id, 'mature')).rejects.toThrow(ValidationError);
+	});
+});
+
 describe('resolveReport', () => {
 	it('removes a reported story and closes every open report on it', async () => {
 		const other = await makeUser(db);

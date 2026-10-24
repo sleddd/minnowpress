@@ -27,6 +27,8 @@
 		reported?: boolean;
 		/** A mature story the viewer hasn't opted in to: its text was withheld. */
 		matureHidden?: boolean;
+		/** Called with the story's new totals after the viewer rates it. */
+		onrated?: (totals: { count: number; average: number | null }) => void;
 	}
 
 	let {
@@ -37,7 +39,8 @@
 		rating = null,
 		bookmarked = false,
 		reported = false,
-		matureHidden = false
+		matureHidden = false,
+		onrated
 	}: Props = $props();
 
 	const published = $derived(story.status === 'published');
@@ -46,6 +49,9 @@
 		story.archive ? archiveAuthorPath(story.archive.authorUrl) : `/@${story.author.username}`
 	);
 	const bio = $derived(story.archive ? null : story.author.bio?.trim() || null);
+	// A new rating brings back the story's totals; shown here until the page next loads.
+	let average = $derived(story.averageRating);
+	let ratingsCount = $derived(story.ratingsCount);
 </script>
 
 <article class="story" aria-labelledby="story-title">
@@ -97,15 +103,25 @@
 			<div class="average">
 				<Eyebrow tone="muted">Average reader rating</Eyebrow>
 				<p class="score">
-					<RatingFish value={story.averageRating} />
+					<RatingFish value={average} />
 					<span
-						>{story.averageRating === null
+						>{average === null
 							? 'Not rated yet'
-							: `${story.averageRating} · rated ${pluralize(story.ratingsCount, 'time')}`}</span
+							: `${average} · rated ${pluralize(ratingsCount, 'time')}`}</span
 					>
 				</p>
 			</div>
-			<RatingInput storyId={story.id} score={rating} {signedIn} {isAuthor} />
+			<RatingInput
+				storyId={story.id}
+				score={rating}
+				{signedIn}
+				{isAuthor}
+				onrated={(totals) => {
+					average = totals.average;
+					ratingsCount = totals.count;
+					onrated?.(totals);
+				}}
+			/>
 		</div>
 
 		<div class="actions links">
@@ -120,6 +136,12 @@
 				/>
 			{/if}
 			{#if isModerator}
+				<form method="POST" action="/s/{story.id}?/mature" use:enhance>
+					<input type="hidden" name="mature" value={story.matureLocked ? 'false' : 'true'} />
+					<Button type="submit" variant="ghost" size="sm"
+						>{story.matureLocked ? 'Clear mature (moderator)' : 'Mark mature (moderator)'}</Button
+					>
+				</form>
 				<form method="POST" action="/s/{story.id}?/remove" use:enhance>
 					<Button type="submit" variant="ghost" size="sm">Remove (moderator)</Button>
 				</form>

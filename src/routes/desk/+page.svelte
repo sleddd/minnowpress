@@ -24,7 +24,10 @@
 		<DeskStories username={data.viewer?.username ?? ''} stories={data.stories} />
 	{/snippet}
 	{#snippet activity()}
-		<ActivityList items={data.activity} />
+		<ActivityList
+			items={data.activity}
+			more={data.activity.length ? { href: '/desk/activity', label: 'All activity' } : null}
+		/>
 	{/snippet}
 	{#snippet aside()}
 		{#if data.viewer}<DeskPanel

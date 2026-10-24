@@ -13,12 +13,13 @@
 
 	let { action, targetType, targetId, reported = false }: Props = $props();
 
-	const reasons = [
+	const reasons = $derived([
 		{ value: 'ai_generated', label: 'Suspected AI-generated' },
+		...(targetType === 'story' ? [{ value: 'mature', label: 'Should be marked mature' }] : []),
 		{ value: 'spam', label: 'Spam' },
 		{ value: 'abuse', label: 'Abusive or harmful' },
 		{ value: 'other', label: 'Something else' }
-	];
+	]);
 	const id = $derived(`report-${targetType}-${targetId}`);
 </script>
 

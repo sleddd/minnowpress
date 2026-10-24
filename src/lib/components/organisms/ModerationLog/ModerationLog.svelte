@@ -19,7 +19,9 @@
 		delete_comment: 'Deleted comment',
 		suspend_user: 'Suspended member',
 		unsuspend_user: 'Lifted suspension',
-		dismiss_report: 'Dismissed report'
+		dismiss_report: 'Dismissed report',
+		mark_mature: 'Marked mature',
+		unmark_mature: 'Cleared mature'
 	};
 	const serious = new Set<ModerationLogView['action']>([
 		'remove_story',

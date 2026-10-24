@@ -230,8 +230,6 @@
 		padding-block: var(--space-2);
 		color: var(--color-accent);
 		font-style: italic;
-		text-decoration: underline dashed;
-		text-underline-offset: 0.3em;
 		list-style: none;
 		cursor: pointer;
 	}
@@ -275,8 +273,6 @@
 		padding-block: var(--space-2);
 		color: var(--color-danger);
 		font-style: italic;
-		text-decoration: underline dashed;
-		text-underline-offset: 0.3em;
 		list-style: none;
 		cursor: pointer;
 	}

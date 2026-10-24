@@ -5,7 +5,7 @@
 		label: string;
 		/** Runs the passkey ceremony; resolves to an error message, or null on success. */
 		run: () => Promise<string | null>;
-		variant?: 'primary' | 'secondary';
+		variant?: 'primary' | 'secondary' | 'dashed';
 		id?: string;
 		/** The key icon before the label; off where the button speaks for itself. */
 		icon?: boolean;

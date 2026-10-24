@@ -93,7 +93,6 @@
 
 	.grid ~ .more :global(a) {
 		font-style: italic;
-		text-decoration: underline;
 	}
 
 	.grid {

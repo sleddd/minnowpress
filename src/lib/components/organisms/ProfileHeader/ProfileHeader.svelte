@@ -95,10 +95,6 @@
 		white-space: pre-line;
 	}
 
-	.site :global(a) {
-		text-decoration: underline;
-	}
-
 	.stats {
 		display: flex;
 		align-self: stretch;

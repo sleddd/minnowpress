@@ -59,6 +59,8 @@ export interface StoryDetailView {
 	body: string;
 	status: 'draft' | 'published' | 'removed';
 	isMature: boolean;
+	/** A moderator marked it mature; the author can't undo that. */
+	matureLocked?: boolean;
 	relation: Relation | null;
 	chainId: number | null;
 	ratingsCount: number;
@@ -113,7 +115,7 @@ export interface ReportView {
 	id: number;
 	targetType: 'story' | 'comment';
 	targetId: number;
-	reason: 'ai_generated' | 'spam' | 'abuse' | 'other';
+	reason: 'ai_generated' | 'mature' | 'spam' | 'abuse' | 'other';
 	note: string;
 	createdAt: Date;
 	reporter: string;
@@ -177,11 +179,14 @@ export interface BlogPostView {
 }
 
 export interface ActivityEventView {
-	kind: 'comment' | 'sequel' | 'prequel';
+	/** rating: someone rated the member's story. rated: the member rated someone else's. */
+	kind: 'comment' | 'sequel' | 'prequel' | 'rating' | 'rated';
 	at: Date;
-	actor: { username: string; displayName: string };
+	/** Null for the member's own ratings. */
+	actor: { username: string; displayName: string } | null;
 	story: { id: number; title: string };
 	continuation: { id: number; title: string } | null;
+	score: number | null;
 }
 
 /** One of the member's own stories on their desk: a draft, or published. */
@@ -217,7 +222,9 @@ export interface ModerationLogView {
 		| 'delete_comment'
 		| 'suspend_user'
 		| 'unsuspend_user'
-		| 'dismiss_report';
+		| 'dismiss_report'
+		| 'mark_mature'
+		| 'unmark_mature';
 	targetType: 'story' | 'comment' | 'user';
 	targetId: number;
 	reportId: number | null;

@@ -40,8 +40,4 @@
 		font-size: var(--text-lg);
 		font-style: italic;
 	}
-
-	.links :global(a) {
-		text-decoration: underline;
-	}
 </style>

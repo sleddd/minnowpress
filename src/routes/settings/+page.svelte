@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { PUBLIC_APP_NAME } from '$app/env/public';
 	import { invalidateAll } from '$app/navigation';
+	import { page } from '$app/state';
 	import { passkeysSupported, registerPasskey } from '#lib/passkey-client.ts';
 	import { PageMeta } from '#lib/components/atoms/index.ts';
 	import {
@@ -12,7 +13,7 @@
 		SessionList,
 		TwoFactorSettings
 	} from '#lib/components/organisms/index.ts';
-	import { FormLayout } from '#lib/components/templates/index.ts';
+	import { SettingsLayout } from '#lib/components/templates/index.ts';
 	import type { PageProps } from './$types';
 
 	let { data, form }: PageProps = $props();
@@ -34,13 +35,15 @@
 
 <PageMeta title="Settings" siteName={PUBLIC_APP_NAME} />
 
-<FormLayout>
+<SettingsLayout title={data.welcome && !form ? 'Welcome! Set up your profile' : 'Your profile'}>
 	{#key values}
 		<ProfileForm
 			{values}
 			errors={form && 'errors' in form ? form.errors : {}}
 			saved={Boolean(form && 'saved' in form && form.saved)}
 			welcome={data.welcome && !form}
+			adultConfirmed={data.adultConfirmed}
+			profilePrefix="{page.url.host}/@"
 		/>
 	{/key}
 	<EmailSettingsForm
@@ -64,4 +67,4 @@
 		sessions={data.sessions}
 		revoked={Boolean(form && 'sessionsRevoked' in form && form.sessionsRevoked)}
 	/>
-</FormLayout>
+</SettingsLayout>

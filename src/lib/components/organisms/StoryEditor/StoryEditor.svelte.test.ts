@@ -117,4 +117,39 @@ describe('StoryEditor', () => {
 			.toHaveAttribute('value', 'publish');
 		expect(new FormData(screen.container.querySelector('form')!).get('editId')).toBe('7');
 	});
+
+	it('asks the author to confirm they’re 18 or older when marking a story mature', async () => {
+		const screen = await render(StoryEditor, base);
+		const adult = screen.getByRole('checkbox', { name: 'I’m 18 or older' });
+		await expect.element(adult).not.toBeInTheDocument();
+		await screen.getByRole('checkbox', { name: 'Mature content' }).click();
+		await expect.element(adult).toBeRequired();
+		await expectAccessible(screen.container);
+		await screen.unmount();
+
+		const confirmed = await render(StoryEditor, {
+			...base,
+			values: { ...values, isMature: true },
+			adultConfirmed: true
+		});
+		await expect
+			.element(confirmed.getByRole('checkbox', { name: 'I’m 18 or older' }))
+			.not.toBeInTheDocument();
+	});
+
+	it('keeps a story a moderator marked mature locked', async () => {
+		const screen = await render(StoryEditor, {
+			...base,
+			values: { ...values, isMature: true },
+			editId: 4,
+			editingPublished: true,
+			matureLocked: true
+		});
+		const mature = screen.getByRole('checkbox', { name: 'Mature content' });
+		await expect.element(mature).toBeChecked();
+		await expect.element(mature).toBeDisabled();
+		await expect
+			.element(screen.getByText('A moderator marked this story mature.'))
+			.toBeInTheDocument();
+	});
 });

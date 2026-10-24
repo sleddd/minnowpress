@@ -19,6 +19,7 @@ import {
 	matureHiddenFrom,
 	removeStory,
 	restoreStory,
+	setStoryMature,
 	tagsFor,
 	editableStory,
 	updateStory,
@@ -380,6 +381,39 @@ describe('archiveOf', () => {
 	it('is included on story details', async () => {
 		const story = await createStory(db, alice.id, input());
 		expect((await getStory(db, story.id))?.archive).toBeNull();
+	});
+});
+
+describe('setStoryMature', () => {
+	it('marks a story mature for good, until a moderator clears it, and logs both', async () => {
+		const mod = await makeUser(db, { role: 'mod' });
+		const story = await createStory(db, alice.id, input());
+		await setStoryMature(db, story.id, mod.id, true);
+		expect(await db.query.stories.findFirst({ where: eq(stories.id, story.id) })).toMatchObject({
+			isMature: true,
+			matureLocked: true
+		});
+
+		// The author can't untick it.
+		await updateStory(db, alice.id, story.id, input({ isMature: false }));
+		expect((await getStory(db, story.id, alice.id))?.isMature).toBe(true);
+
+		await setStoryMature(db, story.id, mod.id, false);
+		await updateStory(db, alice.id, story.id, input({ isMature: false }));
+		expect(await db.query.stories.findFirst({ where: eq(stories.id, story.id) })).toMatchObject({
+			isMature: false,
+			matureLocked: false
+		});
+		const log = await db.select().from(moderationLog);
+		expect(log.map((e) => e.action)).toEqual(['mark_mature', 'unmark_mature']);
+	});
+
+	it('refuses a removed or missing story', async () => {
+		const mod = await makeUser(db, { role: 'mod' });
+		const story = await createStory(db, alice.id, input());
+		await removeStory(db, story.id, mod.id);
+		await expect(setStoryMature(db, story.id, mod.id, true)).rejects.toThrow(NotFoundError);
+		await expect(setStoryMature(db, 9999, mod.id, true)).rejects.toThrow(NotFoundError);
 	});
 });
 

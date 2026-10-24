@@ -44,6 +44,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			website: user.website ?? '',
 			showMature: user.showMature
 		},
+		adultConfirmed: user.adultConfirmedAt !== null,
 		prefs: {
 			notifyComments: user.notifyComments,
 			notifyContinuations: user.notifyContinuations,
@@ -75,10 +76,14 @@ export const actions: Actions = {
 			website: formString(data, 'website'),
 			showMature: formBool(data, 'showMature')
 		};
+		const adultConfirmed = formBool(data, 'adultConfirmed');
 		try {
 			// Refresh the signed-in user so the page rendered after this save shows the new values.
 			// Keep staff powers as the request hook set them (off until two-step sign-in).
-			locals.user = { ...(await updateProfile(db, user.id, values)), role: user.role };
+			locals.user = {
+				...(await updateProfile(db, user.id, { ...values, adultConfirmed })),
+				role: user.role
+			};
 			return { saved: true };
 		} catch (e) {
 			return toActionFailure(e, { values });

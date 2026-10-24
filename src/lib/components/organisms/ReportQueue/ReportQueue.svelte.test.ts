@@ -52,4 +52,22 @@ describe('ReportQueue', () => {
 		const screen = await render(ReportQueue, { reports: [] });
 		await expect.element(screen.getByRole('heading', { name: 'All clear' })).toBeInTheDocument();
 	});
+
+	it('offers to mark a story mature, but not a comment', async () => {
+		const screen = await render(ReportQueue, {
+			reports: [
+				report({ reason: 'mature' }),
+				report({
+					id: 2,
+					targetType: 'comment',
+					reason: 'abuse',
+					target: { title: 'Suspicious', body: 'rude', storyId: 5 }
+				})
+			]
+		});
+		await expect.element(screen.getByText('Should be mature')).toBeInTheDocument();
+		const buttons = screen.getByRole('button', { name: 'Mark mature' });
+		await expect.element(buttons).toHaveAttribute('value', 'mature');
+		expect(buttons.elements()).toHaveLength(1);
+	});
 });

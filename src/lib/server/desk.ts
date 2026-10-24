@@ -1,22 +1,47 @@
-import { and, count, desc, eq, isNull, ne, sql } from 'drizzle-orm';
-import { alias } from 'drizzle-orm/sqlite-core';
+import { and, count, desc, eq, isNull, lt, ne, sql } from 'drizzle-orm';
+import { alias, type AnySQLiteColumn } from 'drizzle-orm/sqlite-core';
 import type { DB } from './db/client';
-import { comments, stories, users } from './db/schema';
+import { comments, ratings, stories, users } from './db/schema';
 
 export interface ActivityEvent {
-	kind: 'comment' | 'sequel' | 'prequel';
+	/**
+	 * comment, sequel, prequel, rating: someone commented on, continued or rated the member's
+	 * story. rated: the member rated someone else's story.
+	 */
+	kind: 'comment' | 'sequel' | 'prequel' | 'rating' | 'rated';
 	at: Date;
-	actor: { username: string; displayName: string };
-	/** The member's story that was commented on or continued. */
+	/** Who did it; null for the member's own ratings. */
+	actor: { username: string; displayName: string } | null;
+	/** The story that was commented on, continued or rated. */
 	story: { id: number; title: string };
 	/** For continuations, the new story. */
 	continuation: { id: number; title: string } | null;
+	/** For ratings, how many fish. */
+	score: number | null;
 }
 
-/** Comments on and continuations of the member's stories by other people, newest first. */
-export async function recentActivity(db: DB, userId: number, limit = 10): Promise<ActivityEvent[]> {
+export interface ActivityPage {
+	items: ActivityEvent[];
+	/** Pass as `before` for the next, older page; null when there's nothing older. */
+	next: Date | null;
+}
+
+/**
+ * The member's activity, newest first: comments on, continuations of and ratings of their
+ * stories by other people, and their own ratings of other stories. Each kind is read
+ * newest first and at most one page long, then merged, so an older page costs no more.
+ */
+export async function recentActivity(
+	db: DB,
+	userId: number,
+	opts: { limit?: number; before?: Date | null } = {}
+): Promise<ActivityPage> {
+	const limit = opts.limit ?? 10;
+	const take = limit + 1;
+	const older = <T extends AnySQLiteColumn>(column: T) =>
+		opts.before ? lt(column, opts.before) : undefined;
 	const child = alias(stories, 'child');
-	const [commentRows, continuationRows] = await Promise.all([
+	const [commentRows, continuationRows, ratingRows, ratedRows] = await Promise.all([
 		db
 			.select({
 				at: comments.createdAt,
@@ -31,11 +56,12 @@ export async function recentActivity(db: DB, userId: number, limit = 10): Promis
 					eq(stories.authorId, userId),
 					ne(comments.authorId, userId),
 					isNull(comments.deletedAt),
-					eq(stories.status, 'published')
+					eq(stories.status, 'published'),
+					older(comments.createdAt)
 				)
 			)
 			.orderBy(desc(comments.createdAt))
-			.limit(limit),
+			.limit(take),
 		db
 			.select({
 				at: child.publishedAt,
@@ -54,23 +80,66 @@ export async function recentActivity(db: DB, userId: number, limit = 10): Promis
 					// Unary +: start from the member's own stories and follow their continuations,
 					// rather than walking every published story newest first to find them.
 					sql`+${child.status} = 'published'`,
-					ne(stories.status, 'removed')
+					ne(stories.status, 'removed'),
+					older(child.publishedAt)
 				)
 			)
 			.orderBy(desc(child.publishedAt))
-			.limit(limit)
+			.limit(take),
+		db
+			.select({
+				at: ratings.updatedAt,
+				score: ratings.score,
+				actor: { username: users.username, displayName: users.displayName },
+				story: { id: stories.id, title: stories.title }
+			})
+			.from(ratings)
+			.innerJoin(stories, eq(stories.id, ratings.storyId))
+			.innerJoin(users, eq(users.id, ratings.userId))
+			.where(
+				and(
+					eq(stories.authorId, userId),
+					ne(ratings.userId, userId),
+					eq(stories.status, 'published'),
+					older(ratings.updatedAt)
+				)
+			)
+			.orderBy(desc(ratings.updatedAt))
+			.limit(take),
+		db
+			.select({
+				at: ratings.updatedAt,
+				score: ratings.score,
+				story: { id: stories.id, title: stories.title }
+			})
+			.from(ratings)
+			.innerJoin(stories, eq(stories.id, ratings.storyId))
+			.where(
+				and(eq(ratings.userId, userId), eq(stories.status, 'published'), older(ratings.updatedAt))
+			)
+			.orderBy(desc(ratings.updatedAt))
+			.limit(take)
 	]);
 	const events: ActivityEvent[] = [
-		...commentRows.map((r) => ({ kind: 'comment' as const, continuation: null, ...r })),
+		...commentRows.map((r) => ({
+			kind: 'comment' as const,
+			continuation: null,
+			score: null,
+			...r
+		})),
 		...continuationRows.map((r) => ({
 			kind: (r.relation ?? 'sequel') as 'sequel' | 'prequel',
 			at: r.at!,
 			actor: r.actor,
 			story: r.story,
-			continuation: r.continuation
-		}))
-	];
-	return events.sort((a, b) => b.at.getTime() - a.at.getTime()).slice(0, limit);
+			continuation: r.continuation,
+			score: null
+		})),
+		...ratingRows.map((r) => ({ kind: 'rating' as const, continuation: null, ...r })),
+		...ratedRows.map((r) => ({ kind: 'rated' as const, actor: null, continuation: null, ...r }))
+	].sort((a, b) => b.at.getTime() - a.at.getTime());
+	const items = events.slice(0, limit);
+	return { items, next: events.length > limit ? items[items.length - 1].at : null };
 }
 
 /** Draft and published counts for the desk sidebar. */

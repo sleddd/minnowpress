@@ -77,7 +77,6 @@
 
 	.credit :global(a) {
 		font-style: italic;
-		text-decoration: underline;
 	}
 
 	.card {

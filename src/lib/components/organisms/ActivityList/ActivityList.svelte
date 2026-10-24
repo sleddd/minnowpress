@@ -4,29 +4,49 @@
 
 	interface Props {
 		items: ActivityEventView[];
+		title?: string;
+		/** 1 when the list is the whole page, 2 on the desk. */
+		level?: 1 | 2;
+		/** A link under the list: all activity from the desk, older activity on its own page. */
+		more?: { href: string; label: string } | null;
 		now?: Date;
 	}
 
-	let { items, now = new Date() }: Props = $props();
+	let {
+		items,
+		title = 'Recent Activity',
+		level = 2,
+		more = null,
+		now = new Date()
+	}: Props = $props();
 </script>
 
 <section class="activity" aria-labelledby="activity-title">
-	<Heading level={2} size="md" id="activity-title">Recent Activity</Heading>
+	<Heading {level} size={level === 1 ? 'lg' : 'md'} id="activity-title">{title}</Heading>
 	{#if items.length}
 		<ul role="list">
 			{#each items as event, i (i)}
 				<li>
 					<Text>
-						<Link href="/@{event.actor.username}"><em>{event.actor.displayName}</em></Link>
-						{#if event.kind === 'comment'}
-							commented on
+						{#if event.kind === 'rated'}
+							You rated
+							<Link href="/s/{event.story.id}" variant="story">{event.story.title}</Link>
+							{event.score} fish
 						{:else}
-							wrote a {event.kind},
-							<Link href="/s/{event.continuation?.id}" variant="story"
-								>{event.continuation?.title}</Link
-							>, to
+							<Link href="/@{event.actor?.username}"><em>{event.actor?.displayName}</em></Link>
+							{#if event.kind === 'rating'}
+								rated
+							{:else if event.kind === 'comment'}
+								commented on
+							{:else}
+								wrote a {event.kind},
+								<Link href="/s/{event.continuation?.id}" variant="story"
+									>{event.continuation?.title}</Link
+								>, to
+							{/if}
+							<Link href="/s/{event.story.id}" variant="story">{event.story.title}</Link>
+							{#if event.kind === 'rating'}{event.score} fish{/if}
 						{/if}
-						<Link href="/s/{event.story.id}" variant="story">{event.story.title}</Link>
 						<Timestamp date={event.at} {now} />
 					</Text>
 				</li>
@@ -34,9 +54,11 @@
 		</ul>
 	{:else}
 		<Text tone="muted"
-			>Nothing yet. When people comment on or continue your stories, you’ll see it here.</Text
+			>Nothing yet. When people comment on, continue or rate your stories, or you rate one, you’ll
+			see it here.</Text
 		>
 	{/if}
+	{#if more}<div><Link href={more.href}>{more.label}</Link></div>{/if}
 </section>
 
 <style>

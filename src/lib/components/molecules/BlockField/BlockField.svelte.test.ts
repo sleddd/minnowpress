@@ -29,7 +29,7 @@ describe('BlockField', () => {
 		await expect.element(screen.getByRole('textbox')).toHaveAttribute('aria-invalid', 'true');
 		await expect.element(screen.getByRole('textbox')).toBeRequired();
 		await expect.element(screen.getByText('Give it a title.')).toBeInTheDocument();
-		expect(screen.container.querySelector('.row.invalid')).not.toBeNull();
+		expect(screen.container.querySelector('.line.invalid')).not.toBeNull();
 	});
 
 	it('has a large italic size for titles and passes a placeholder', async () => {
@@ -44,5 +44,32 @@ describe('BlockField', () => {
 			.element(screen.getByRole('textbox', { name: 'Title' }))
 			.toHaveAttribute('placeholder', 'Untitled');
 		expect(screen.container.querySelector('.field.lg')).not.toBeNull();
+	});
+
+	it('can mark itself optional, show a prefix, and take several lines', async () => {
+		const screen = await render(BlockField, {
+			id: 'username',
+			name: 'username',
+			label: 'Username',
+			prefix: 'minnowpress.com/@',
+			value: 'jane'
+		});
+		await expect.element(screen.getByText('minnowpress.com/@')).toBeInTheDocument();
+		await expect.element(screen.getByRole('textbox', { name: 'Username' })).toHaveValue('jane');
+		await screen.unmount();
+
+		const bio = await render(BlockField, {
+			id: 'bio',
+			name: 'bio',
+			label: 'Bio',
+			optional: true,
+			rows: 5,
+			value: 'I write.'
+		});
+		const box = bio.getByRole('textbox', { name: /Bio/ });
+		await expect.element(box).toHaveValue('I write.');
+		expect(box.element().tagName).toBe('TEXTAREA');
+		await expect.element(bio.getByText('(optional)')).toBeInTheDocument();
+		await expectAccessible(bio.container);
 	});
 });

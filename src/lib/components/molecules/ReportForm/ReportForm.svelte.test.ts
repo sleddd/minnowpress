@@ -42,4 +42,27 @@ describe('ReportForm', () => {
 		await expect.element(screen.getByText(/A moderator will take a look/)).toBeVisible();
 		expect(screen.container.querySelector('form')).toBeNull();
 	});
+
+	it('lets readers say a story should be marked mature, but not a comment', async () => {
+		const story = await render(ReportForm, {
+			action: '/s/3?/report',
+			targetType: 'story',
+			targetId: 3
+		});
+		await story.getByText('Report', { exact: true }).click();
+		const options = () =>
+			[...story.container.querySelectorAll('option')].map((o) => o.getAttribute('value'));
+		expect(options()).toContain('mature');
+		await story.unmount();
+
+		const comment = await render(ReportForm, {
+			action: '/s/3?/report',
+			targetType: 'comment',
+			targetId: 8
+		});
+		await comment.getByText('Report', { exact: true }).click();
+		expect([...comment.container.querySelectorAll('option')].map((o) => o.value)).not.toContain(
+			'mature'
+		);
+	});
 });

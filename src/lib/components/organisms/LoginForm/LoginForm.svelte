@@ -259,7 +259,6 @@
 	.toggle {
 		color: var(--color-accent);
 		font-style: italic;
-		text-decoration: underline;
 	}
 
 	/* The join button: an outline that firms up once there's an address to send to. */

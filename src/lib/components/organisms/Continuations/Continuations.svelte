@@ -92,7 +92,6 @@
 	.column > :global(a) {
 		font-size: var(--text-lg);
 		font-style: italic;
-		text-decoration: underline;
 	}
 
 	@media (max-width: 40rem) {

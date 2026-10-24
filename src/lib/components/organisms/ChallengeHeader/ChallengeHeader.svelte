@@ -204,14 +204,10 @@
 		text-decoration: none;
 	}
 
-	.banner-title a:hover {
-		text-decoration: underline;
-	}
-
 	/* The prompt as written, wrapped: no clipping, and no word too long to wrap. */
 	.prompt {
 		max-width: var(--measure);
-		font-size: var(--text-lg);
+		font-size: var(--text-md);
 		line-height: var(--leading-prose);
 		white-space: pre-line;
 		overflow-wrap: anywhere;
@@ -224,10 +220,6 @@
 	.links {
 		font-size: var(--text-lg);
 		font-style: italic;
-	}
-
-	.links :global(a) {
-		text-decoration: underline;
 	}
 
 	/* Narrow spots (the editor sidebar, phones): ribbon above the text. */
@@ -252,7 +244,6 @@
 			font-size: var(--text-xl);
 		}
 
-		.prompt,
 		.links {
 			font-size: var(--text-md);
 		}
@@ -302,7 +293,7 @@
 
 	.hero-prompt {
 		max-width: var(--measure);
-		font-size: var(--text-xl);
+		font-size: var(--text-md);
 		font-style: italic;
 		line-height: var(--leading-prose);
 		white-space: pre-line;
@@ -366,6 +357,5 @@
 
 	dd :global(a) {
 		font-style: italic;
-		text-decoration: underline;
 	}
 </style>

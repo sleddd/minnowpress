@@ -52,10 +52,6 @@
 		text-decoration: none;
 	}
 
-	a:hover {
-		text-decoration: underline;
-	}
-
 	.current {
 		color: var(--color-text);
 		font-weight: var(--weight-semibold);

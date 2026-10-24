@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { TwoFactorStatus } from '#lib/types.ts';
-	import { Button, Heading, Link, Notice, Text } from '../../atoms/index.ts';
-	import { FormField } from '../../molecules/index.ts';
+	import { Badge, Button, Link, Notice, Text } from '../../atoms/index.ts';
+	import { BlockField, SettingsSection } from '../../molecules/index.ts';
 
 	interface Props {
 		status: TwoFactorStatus;
@@ -14,12 +14,11 @@
 	let { status, recoveryCodes = null, turnedOff = false, error = null }: Props = $props();
 </script>
 
-<section class="two-factor" id="two-factor" aria-labelledby="two-factor-title">
-	<Heading level={2} size="md" id="two-factor-title">Two-step sign-in</Heading>
-	<Text tone="muted" size="sm">
-		Staff accounts enter a code from an authenticator app after signing in, so a stolen inbox or
-		passkey alone can’t reach the moderator and admin tools.
-	</Text>
+<SettingsSection
+	id="two-factor"
+	title="Two-step sign-in"
+	description="Staff accounts enter a code from an authenticator app after signing in, so a stolen inbox or passkey alone can’t reach the moderator and admin tools."
+>
 	{#if turnedOff}<Notice tone="success">Two-step sign-in is off.</Notice>{/if}
 
 	{#if recoveryCodes}
@@ -51,53 +50,91 @@
 			>Can’t scan it? Enter this key instead: <code>{status.secret}</code></Text
 		>
 		<form class="form" method="POST" action="?/enableTwoFactor">
-			<FormField
+			<BlockField
 				id="two-factor-code"
 				name="code"
 				label="Code from your app"
 				autocomplete="one-time-code"
+				inputmode="numeric"
+				placeholder="000 000"
 				maxlength={20}
 				required
 				{error}
 			/>
-			<div><Button type="submit">Turn on</Button></div>
+			<Button type="submit" variant="ribbon">Turn on</Button>
 		</form>
 	{:else if status.state === 'locked'}
-		<Text>
-			On. <Link href="/login/two-factor?next=%2Fsettings%23two-factor">Enter your code</Link> to manage
-			it.
-		</Text>
+		<p class="status">
+			<Badge tone="accent" shape="ribbon">on</Badge>
+			<Text as="span">
+				<Link href="/login/two-factor?next=%2Fsettings%23two-factor">Enter your code</Link> to manage
+				it.
+			</Text>
+		</p>
 	{:else}
-		<Text>
-			On, with {status.recoveryLeft}
-			{status.recoveryLeft === 1 ? 'recovery code' : 'recovery codes'} left.
-		</Text>
+		<p class="status">
+			<Badge tone="accent" shape="ribbon">on</Badge>
+			<Text as="span">
+				On, with {status.recoveryLeft}
+				{status.recoveryLeft === 1 ? 'recovery code' : 'recovery codes'} left.
+			</Text>
+		</p>
 		<form class="form" method="POST" action="?/disableTwoFactor">
-			<FormField
+			<BlockField
 				id="two-factor-off-code"
 				name="code"
 				label="Code from your app"
 				hint="To move it to a new phone, turn it off, then set it up again."
 				autocomplete="one-time-code"
+				inputmode="numeric"
+				placeholder="000 000"
 				maxlength={20}
 				required
 				{error}
 			/>
-			<div><Button type="submit" variant="secondary">Turn off</Button></div>
+			<Button type="submit" variant="dashed-danger">Turn off</Button>
 		</form>
 	{/if}
-</section>
+</SettingsSection>
 
 <style>
-	.two-factor,
-	.codes,
-	.form {
+	.codes {
 		display: grid;
 		gap: var(--space-3);
 	}
 
+	.status {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: var(--space-3);
+	}
+
+	/* The code and its button side by side; the hint and any error sit under the code. */
 	.form {
-		max-width: 20rem;
+		display: grid;
+		grid-template-columns: minmax(0, 24rem) max-content;
+		align-items: start;
+		gap: var(--space-5);
+	}
+
+	.form :global(button) {
+		margin-top: var(--space-5);
+	}
+
+	.form :global(input) {
+		letter-spacing: 0.2em;
+	}
+
+	@media (width < 36rem) {
+		.form {
+			grid-template-columns: minmax(0, 1fr);
+		}
+
+		.form :global(button) {
+			justify-self: start;
+			margin-top: var(--space-0);
+		}
 	}
 
 	/* The SVG brings its own white background and quiet zone, so it scans in dark mode too. */

@@ -14,7 +14,8 @@ import {
 	getStory,
 	matureHiddenFrom,
 	publishStory,
-	removeStory
+	removeStory,
+	setStoryMature
 } from '#lib/server/stories.ts';
 import type { User } from '#lib/server/db/schema.ts';
 import type { Actions, PageServerLoad } from './$types';
@@ -139,6 +140,16 @@ export const actions: Actions = {
 			return toActionFailure(e);
 		}
 		redirect(303, `/@${user.username}`);
+	},
+
+	mature: async ({ params, locals, request }) => {
+		const mod = requireModerator(locals.user);
+		const mature = formString(await request.formData(), 'mature') === 'true';
+		try {
+			await setStoryMature(db, paramInt(params.id), mod.id, mature);
+		} catch (e) {
+			return toActionFailure(e);
+		}
 	},
 
 	remove: async ({ params, locals }) => {

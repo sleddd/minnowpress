@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { SessionView } from '#lib/types.ts';
-	import { Badge, Button, Heading, Notice, Text, Timestamp } from '../../atoms/index.ts';
+	import { Badge, Button, Notice, Text, Timestamp } from '../../atoms/index.ts';
+	import { SettingsSection } from '../../molecules/index.ts';
 
 	interface Props {
 		sessions: SessionView[];
@@ -13,9 +14,11 @@
 	const others = $derived(sessions.filter((s) => !s.current).length);
 </script>
 
-<section class="sessions" aria-labelledby="sessions-title">
-	<Heading level={2} size="md" id="sessions-title">Where you’re signed in</Heading>
-	<Text size="sm" tone="muted">Every sign-in ends automatically two days after it starts.</Text>
+<SettingsSection
+	id="sessions"
+	title="Where you’re signed in"
+	description="Every sign-in ends automatically two days after it starts."
+>
 	{#if revoked}<Notice tone="success">Signed out.</Notice>{/if}
 	<ul class="list" role="list">
 		{#each sessions as session (session.id)}
@@ -23,7 +26,7 @@
 				<div class="info">
 					<Text>
 						<strong>{session.device}</strong>
-						{#if session.current}<Badge tone="accent">This device</Badge>{/if}
+						{#if session.current}<Badge tone="accent" shape="tag">this device</Badge>{/if}
 					</Text>
 					<Text size="sm" tone="muted">
 						{#if session.lastUsedAt}Active <Timestamp date={session.lastUsedAt} />{/if}
@@ -41,16 +44,15 @@
 	</ul>
 	{#if others > 0}
 		<form method="POST" action="?/revokeOtherSessions">
-			<Button type="submit" variant="secondary">Sign out everywhere else</Button>
+			<Button type="submit" variant="dashed">Sign out everywhere else</Button>
 		</form>
 	{/if}
-</section>
+</SettingsSection>
 
 <style>
-	.sessions,
 	.list {
 		display: grid;
-		gap: var(--space-3);
+		border-top: var(--border-width) dashed var(--color-border-strong);
 	}
 
 	.item {
@@ -58,7 +60,7 @@
 		align-items: center;
 		justify-content: space-between;
 		gap: var(--space-3);
-		padding-block: var(--space-3);
+		padding-block: var(--space-4);
 		border-bottom: var(--border-width) dashed var(--color-border-strong);
 	}
 

@@ -12,7 +12,9 @@ export default defineConfig({
 				runes: ({ filename }) =>
 					filename.split(/[/\\]/).includes('node_modules') ? undefined : true
 			},
-			adapter: adapter({ runtime: 'nodejs24.x' }),
+			// Oregon, next to the Turso database (aws-us-west-2): every query is a round trip, and a
+			// page makes several in a row, so across the country a click took seconds.
+			adapter: adapter({ runtime: 'nodejs24.x', regions: ['pdx1'] }),
 			// The e2e server gets its own output dir: generated files (including env values) are
 			// shared and hot-reloaded, so a second dev server would otherwise rewire yours to e2e.db.
 			outDir: process.env.SVELTEKIT_OUT_DIR ?? '.svelte-kit',

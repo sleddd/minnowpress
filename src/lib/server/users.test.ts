@@ -3,6 +3,8 @@ import type { DB } from './db/client';
 import { ForbiddenError, NotFoundError, ValidationError } from './errors';
 import { createTestDb, makeUser } from './testing/db';
 import {
+	ADULT_REQUIRED,
+	confirmAdult,
 	findOrCreateUserByEmail,
 	getUserById,
 	getUserByUsername,
@@ -86,6 +88,20 @@ describe('normalizeWebsite', () => {
 	});
 });
 
+describe('confirmAdult', () => {
+	it('records the confirmation once and asks nothing after', async () => {
+		const u = await makeUser(db);
+		await expect(confirmAdult(db, u, false, 'write')).rejects.toMatchObject({
+			fields: { adultConfirmed: ADULT_REQUIRED.write }
+		});
+		const now = new Date('2026-10-23T12:00:00Z');
+		await confirmAdult(db, u, true, 'write', now);
+		const confirmed = (await getUserById(db, u.id))!;
+		expect(confirmed.adultConfirmedAt).toEqual(now);
+		await expect(confirmAdult(db, confirmed, false, 'read')).resolves.toBeUndefined();
+	});
+});
+
 describe('updateProfile', () => {
 	const profile = (o: Partial<ProfileInput> = {}): ProfileInput => ({
 		username: 'jane',
@@ -96,12 +112,28 @@ describe('updateProfile', () => {
 		...o
 	});
 
+	it('turns mature stories on only for members who confirm they’re 18 or older', async () => {
+		const u = await makeUser(db);
+		await expect(updateProfile(db, u.id, profile({ showMature: true }))).rejects.toMatchObject({
+			fields: { adultConfirmed: ADULT_REQUIRED.read }
+		});
+		const saved = await updateProfile(
+			db,
+			u.id,
+			profile({ showMature: true, adultConfirmed: true })
+		);
+		expect(saved.adultConfirmedAt).toBeInstanceOf(Date);
+		// Once confirmed, turning it off and on again asks nothing more.
+		await updateProfile(db, u.id, profile({ showMature: false }));
+		expect((await updateProfile(db, u.id, profile({ showMature: true }))).showMature).toBe(true);
+	});
+
 	it('saves a valid profile', async () => {
 		const u = await makeUser(db);
 		const updated = await updateProfile(
 			db,
 			u.id,
-			profile({ username: 'Jane', website: 'jane.dev', showMature: true })
+			profile({ username: 'Jane', website: 'jane.dev', showMature: true, adultConfirmed: true })
 		);
 		expect(updated).toMatchObject({
 			username: 'jane',

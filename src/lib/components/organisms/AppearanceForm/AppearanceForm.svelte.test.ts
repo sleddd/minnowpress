@@ -4,14 +4,24 @@ import { expectAccessible } from '../../testing/helpers';
 import AppearanceForm from './AppearanceForm.svelte';
 
 describe('AppearanceForm', () => {
-	it('lets the member pick auto, light, or dark', async () => {
+	it('offers a sun for each theme that saves it, marking the current one', async () => {
 		const screen = await render(AppearanceForm, { theme: 'dark' });
 		await expect.element(screen.getByRole('heading', { name: 'Appearance' })).toBeInTheDocument();
-		await expect.element(screen.getByRole('radio', { name: /Dark/ })).toBeChecked();
-		await expect.element(screen.getByRole('radio', { name: /Auto/ })).not.toBeChecked();
-		const form = screen.container.querySelector('form')!;
-		expect(form.getAttribute('action')).toBe('?/theme');
-		expect(new FormData(form).get('theme')).toBe('dark');
+		const dark = screen.getByRole('button', { name: 'Dark theme' });
+		await expect.element(dark).toHaveAttribute('aria-pressed', 'true');
+		await expect.element(dark).toHaveAttribute('value', 'dark');
+		await expect.element(dark).toHaveAttribute('type', 'submit');
+		await expect
+			.element(screen.getByRole('button', { name: 'Light theme' }))
+			.toHaveAttribute('aria-pressed', 'false');
+		await expect
+			.element(screen.getByRole('button', { name: /Auto theme/ }))
+			.toHaveAttribute('aria-pressed', 'false');
+		expect(screen.container.querySelector('form')?.getAttribute('action')).toBe('?/theme');
+		// Outline for light, filled for dark, half of each for auto.
+		const fills = (value: string) =>
+			screen.container.querySelectorAll(`button[value="${value}"] .fill`).length;
+		expect([fills('light'), fills('dark'), fills('auto')]).toEqual([0, 1, 1]);
 		await expectAccessible(screen.container);
 	});
 

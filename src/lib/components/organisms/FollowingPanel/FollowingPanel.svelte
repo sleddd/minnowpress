@@ -106,6 +106,5 @@
 	.empty :global(a[href='/authors']),
 	.writer > :global(a) {
 		font-style: italic;
-		text-decoration: underline;
 	}
 </style>

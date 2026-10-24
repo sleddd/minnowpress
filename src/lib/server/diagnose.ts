@@ -157,7 +157,7 @@ export const SCENARIOS: Record<string, (db: DB, pick: DB) => Promise<unknown>> =
 		});
 		if (!member) return;
 		await listPublishedPosts(db);
-		await recentActivity(db, member.id, 8);
+		await recentActivity(db, member.id, { limit: 8 });
 		await storyCounts(db, member.id);
 		await followingFeed(db, member.id, { pageSize: 5 });
 		await listFollowing(db, member.id);

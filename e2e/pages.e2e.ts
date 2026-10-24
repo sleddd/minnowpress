@@ -154,17 +154,18 @@ test('members pick light, dark, or automatic theme in settings', async ({ page }
 	await signUp(page, 'theo@example.com', 'theo');
 	await page.goto('/settings', { waitUntil: 'networkidle' });
 	await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
-	await expect(page.getByRole('radio', { name: /Light/ })).toBeChecked();
-	await page.getByRole('radio', { name: /Dark/ }).check();
-	await page.getByRole('button', { name: 'Save theme' }).click();
+	await expect(page.getByRole('button', { name: 'Light theme', exact: true })).toHaveAttribute(
+		'aria-pressed',
+		'true'
+	);
+	await page.getByRole('button', { name: 'Dark theme', exact: true }).click();
 	await expect(page.getByText('Theme saved.')).toBeVisible();
 	await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
 	// It sticks to the account on every page.
 	await page.goto('/tags');
 	await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
 	await page.goto('/settings', { waitUntil: 'networkidle' });
-	await page.getByRole('radio', { name: /Auto/ }).check();
-	await page.getByRole('button', { name: 'Save theme' }).click();
+	await page.getByRole('button', { name: /Auto theme/ }).click();
 	await expect(page.locator('html')).toHaveAttribute('data-theme', '');
 });
 
@@ -178,11 +179,14 @@ test('saving the profile keeps every field', async ({ page }) => {
 
 	// A second save of a different field must not undo the first.
 	await page.getByRole('checkbox', { name: 'Show mature stories' }).check();
+	await page.getByRole('checkbox', { name: 'I’m 18 or older' }).check();
 	await page.getByRole('button', { name: 'Save profile' }).click();
 	await expect(page.getByText('Profile saved.')).toBeVisible();
 	await page.goto('/settings', { waitUntil: 'networkidle' });
 	await expect(page.getByRole('textbox', { name: 'Bio' })).toHaveValue('I write about tides.');
 	await expect(page.getByRole('checkbox', { name: 'Show mature stories' })).toBeChecked();
+	// Confirmed once: not asked again.
+	await expect(page.getByRole('checkbox', { name: 'I’m 18 or older' })).toHaveCount(0);
 
 	await page.getByRole('textbox', { name: 'Bio' }).fill('Tides and fog.');
 	await page.getByRole('button', { name: 'Save profile' }).click();

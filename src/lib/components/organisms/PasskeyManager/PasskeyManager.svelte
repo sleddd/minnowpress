@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import type { PasskeyView } from '#lib/types.ts';
-	import { Button, Heading, Label, Text, TextInput, Timestamp } from '../../atoms/index.ts';
-	import { PasskeyButton } from '../../molecules/index.ts';
+	import { Icon, Text, Timestamp } from '../../atoms/index.ts';
+	import { BlockField, PasskeyButton, SettingsSection } from '../../molecules/index.ts';
 
 	interface Props {
 		passkeys: PasskeyView[];
@@ -16,18 +16,18 @@
 	let name = $state('');
 </script>
 
-<section class="passkeys" aria-labelledby="passkeys-title">
-	<Heading level={2} size="md" id="passkeys-title">Passkeys</Heading>
-	<Text tone="muted" size="sm">
-		Sign in with your fingerprint, face, or device PIN instead of an email link.
-	</Text>
-
+<SettingsSection
+	id="passkeys"
+	title="Passkeys"
+	description="Sign in with your fingerprint, face, or device PIN instead of an email link."
+>
 	{#if passkeys.length}
 		<ul class="list" role="list">
 			{#each passkeys as passkey (passkey.id)}
 				<li class="item">
-					<div>
-						<Text>{passkey.name}</Text>
+					<Icon name="key" />
+					<div class="info">
+						<strong>{passkey.name}</strong>
 						<Text as="span" size="sm" tone="muted">
 							Added <Timestamp date={passkey.createdAt} relative={false} />
 							{#if passkey.lastUsedAt}· last used <Timestamp date={passkey.lastUsedAt} />{/if}
@@ -35,9 +35,7 @@
 					</div>
 					<form method="POST" action="?/removePasskey" use:enhance>
 						<input type="hidden" name="id" value={passkey.id} />
-						<Button type="submit" variant="ghost" size="sm" aria-label="Remove {passkey.name}"
-							>Remove</Button
-						>
+						<button type="submit" class="remove" aria-label="Remove {passkey.name}">Remove</button>
 					</form>
 				</li>
 			{/each}
@@ -46,35 +44,73 @@
 
 	{#if supported}
 		<div class="add">
-			<Label for="passkey-name" optional>Name this passkey</Label>
-			<TextInput id="passkey-name" bind:value={name} maxlength={50} placeholder="e.g. MacBook" />
-			<PasskeyButton id="add-passkey" label="Add a passkey" run={() => onAdd(name || 'Passkey')} />
+			<BlockField
+				id="passkey-name"
+				name="passkeyName"
+				label="Name this passkey"
+				optional
+				bind:value={name}
+				maxlength={50}
+				placeholder="e.g. MacBook"
+			/>
+			<PasskeyButton
+				id="add-passkey"
+				label="Add a passkey"
+				variant="dashed"
+				run={() => onAdd(name || 'Passkey')}
+			/>
 		</div>
 	{:else}
 		<Text tone="muted" size="sm">This browser doesn't support passkeys.</Text>
 	{/if}
-</section>
+</SettingsSection>
 
 <style>
-	.passkeys,
-	.list,
-	.add {
+	.list {
 		display: grid;
-		gap: var(--space-3);
+		border-top: var(--border-width) dashed var(--color-border-strong);
 	}
 
 	.item {
-		display: flex;
+		display: grid;
+		grid-template-columns: auto minmax(0, 1fr) auto;
 		align-items: center;
-		justify-content: space-between;
-		gap: var(--space-3);
-		padding: var(--space-3);
-		border: var(--border-width) solid var(--color-border);
-		border-radius: var(--radius-md);
+		gap: var(--space-4);
+		padding-block: var(--space-4);
+		border-bottom: var(--border-width) dashed var(--color-border-strong);
+		color: var(--color-accent);
+	}
+
+	.info {
+		display: grid;
+		gap: var(--space-1);
+		color: var(--color-text);
+	}
+
+	.remove {
+		padding: var(--space-0);
+		border: 0;
+		background: none;
+		color: var(--color-text-muted);
+		font: inherit;
+		font-style: italic;
+		cursor: pointer;
+	}
+
+	.remove:hover {
+		color: var(--color-danger);
 	}
 
 	.add {
-		gap: var(--space-1);
-		max-width: 20rem;
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) auto;
+		align-items: end;
+		gap: var(--space-5);
+	}
+
+	@media (width < 36rem) {
+		.add {
+			grid-template-columns: minmax(0, 1fr);
+		}
 	}
 </style>

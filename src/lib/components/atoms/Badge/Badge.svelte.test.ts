@@ -19,4 +19,18 @@ describe('Badge', () => {
 		await screen.rerender({ tone: 'success' });
 		expect(screen.container.querySelector('.badge')?.classList.contains('success')).toBe(true);
 	});
+
+	it('can be a notched ribbon or tag', async () => {
+		const ribbon = await render(Badge, { tone: 'accent', shape: 'ribbon', children: text('on') });
+		const el = ribbon.container.querySelector('.badge') as HTMLElement;
+		expect(el.classList.contains('ribbon')).toBe(true);
+		expect(getComputedStyle(el).clipPath).toContain('polygon');
+		expect(getComputedStyle(el).textTransform).toBe('none');
+		const tag = await render(Badge, {
+			tone: 'accent',
+			shape: 'tag',
+			children: text('this device')
+		});
+		expect(getComputedStyle(tag.container.querySelector('.badge')!).clipPath).toContain('polygon');
+	});
 });
