@@ -12,7 +12,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	const before = queryInt(url.searchParams.get('before'));
 	const activity = await recentActivity(db, user.id, {
 		limit: PAGE_SIZE,
-		before: before ? new Date(before) : null
+		before: before ? new Date(before) : null,
+		showMature: user.showMature
 	});
 	return { activity, older: before !== null };
 };

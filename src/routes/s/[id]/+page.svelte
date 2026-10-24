@@ -56,7 +56,7 @@
 	{/if}
 {/snippet}
 
-<ArticleLayout {aside} {below}>
+<ArticleLayout {aside} {below} divided>
 	<StoryView
 		{story}
 		signedIn={Boolean(data.viewer)}

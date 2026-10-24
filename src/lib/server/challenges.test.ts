@@ -10,6 +10,7 @@ import {
 	ensureCurrentChallenge,
 	repackQueue,
 	reopenChallenge,
+	removeChallenge,
 	rescheduleChallengeDates,
 	getChallenge,
 	MAX_PENDING_PER_MEMBER,
@@ -28,6 +29,7 @@ import {
 } from './challenges';
 import type { DB } from './db/client';
 import { challenges, stories } from './db/schema';
+import { listModerationLog } from './moderation-log';
 import { ForbiddenError, NotFoundError, ValidationError } from './errors';
 import { createStory } from './stories';
 import { PAD, createTestDb, makeUser } from './testing/db';
@@ -294,6 +296,45 @@ describe('ensureCurrentChallenge', () => {
 			action: 'none',
 			challenge: null
 		});
+	});
+});
+
+describe('removeChallenge', () => {
+	it('hides a challenge everywhere, archive ones too, keeps its stories, and logs it', async () => {
+		const mod = await makeUser(db, { role: 'mod' });
+		const old = await ended();
+		await db.update(challenges).set({ archiveId: 77 }).where(eq(challenges.id, old.id));
+		const author = await makeUser(db);
+		const entry = await createStory(db, author.id, {
+			title: 'Entry',
+			body: 'Text' + PAD,
+			tags: [],
+			publish: true,
+			challengeId: null
+		});
+		await db.update(stories).set({ challengeId: old.id }).where(eq(stories.id, entry.id));
+
+		await removeChallenge(db, old.id, mod.id, NOW);
+		expect(await getChallenge(db, old.id, NOW)).toBeNull();
+		expect((await listChallenges(db, { now: NOW })).closed).toEqual([]);
+		expect(await db.query.stories.findFirst({ where: eq(stories.id, entry.id) })).toMatchObject({
+			status: 'published'
+		});
+		const [line] = (await listModerationLog(db)).items;
+		expect(line).toMatchObject({
+			action: 'remove_challenge',
+			actor: mod.username,
+			target: { label: 'Fog', href: null }
+		});
+		await expect(removeChallenge(db, old.id, mod.id, NOW)).rejects.toThrow(NotFoundError);
+	});
+
+	it('starts the next in line when the running challenge is removed', async () => {
+		const mod = await makeUser(db, { role: 'mod' });
+		const running = await live();
+		const next = await live(new Date(NOW.getTime() + 13 * DAY));
+		await removeChallenge(db, running.id, mod.id, NOW);
+		expect((await todaysPrompt(db, NOW))?.id).toBe(next.id);
 	});
 });
 

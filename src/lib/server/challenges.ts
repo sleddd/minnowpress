@@ -3,6 +3,7 @@ import { countGraphemes } from '#lib/text.ts';
 import type { DB } from './db/client';
 import { challenges, stories, users, type Challenge } from './db/schema';
 import { ForbiddenError, NotFoundError, ValidationError } from './errors';
+import { logModeration } from './moderation-log';
 
 export const CHALLENGE_TITLE_MAX = 100;
 export const CHALLENGE_PROMPT_MAX = 500;
@@ -253,6 +254,32 @@ export async function deleteChallenge(
 		.where(and(eq(challenges.id, challengeId), ours))
 		.returning({ id: challenges.id });
 	if (result.length === 0) throw new NotFoundError('Challenge not found');
+	await ensureCurrentChallenge(db, now);
+	await repackQueue(db, now);
+}
+
+/**
+ * Moderator: takes a challenge down, the Ficly archive's included. It's hidden everywhere, like
+ * a removed story; stories written for it stay up. If it was running, the next in line starts.
+ */
+export async function removeChallenge(
+	db: DB,
+	challengeId: number,
+	moderatorId: number,
+	now = new Date()
+): Promise<void> {
+	const removed = await db
+		.update(challenges)
+		.set({ status: 'removed' })
+		.where(and(eq(challenges.id, challengeId), ne(challenges.status, 'removed')))
+		.returning({ id: challenges.id });
+	if (removed.length === 0) throw new NotFoundError('Challenge not found');
+	await logModeration(db, {
+		actorId: moderatorId,
+		action: 'remove_challenge',
+		targetType: 'challenge',
+		targetId: challengeId
+	});
 	await ensureCurrentChallenge(db, now);
 	await repackQueue(db, now);
 }

@@ -224,3 +224,70 @@ test('authors confirm they’re 18 or older to post a mature story', async ({ pa
 	await expect(page.getByRole('heading', { level: 1, name: 'After Hours' })).toBeVisible();
 	await expect(page.getByText('Mature', { exact: true })).toBeVisible();
 });
+
+test('mature stories stay out of sight until a reader turns them on', async ({ page }) => {
+	await signUp(page, 'joan@example.com', 'joan');
+	await page.goto('/write');
+	await writeStory(page, 'Calm Waters', 'The harbour was still that morning, and nobody spoke.');
+	const parentUrl = page.url();
+	await page.goto(`/write?sequel_to=${parentUrl.split('/').pop()}`);
+	await page.getByRole('checkbox', { name: 'Mature content' }).check();
+	await page.getByRole('checkbox', { name: 'I’m 18 or older' }).check();
+	await writeStory(page, 'Rough Waters', 'What happened after dark on the harbour wall.');
+	const matureUrl = page.url();
+	await signOut(page);
+
+	await signUp(page, 'kitty@example.com', 'kitty');
+	// Not listed under the story it continues.
+	await page.goto(parentUrl);
+	await expect(page.getByRole('heading', { level: 1, name: 'Calm Waters' })).toBeVisible();
+	await expect(page.getByRole('link', { name: 'Rough Waters' })).toHaveCount(0);
+
+	// Turned on, it shows, and can be saved; turned off again, it leaves the reading list too.
+	await page.goto('/settings', { waitUntil: 'networkidle' });
+	await page.getByRole('checkbox', { name: 'Show mature stories' }).check();
+	await page.getByRole('checkbox', { name: 'I’m 18 or older' }).check();
+	await page.getByRole('button', { name: 'Save profile' }).click();
+	await expect(page.getByText('Profile saved.')).toBeVisible();
+	await page.goto(parentUrl);
+	await expect(page.getByRole('link', { name: 'Rough Waters' })).toBeVisible();
+	await page.goto(matureUrl, { waitUntil: 'networkidle' });
+	await page.getByRole('button', { name: 'Save', exact: true }).click();
+	await expect(page.getByRole('button', { name: 'Saved' })).toBeVisible();
+	await page.goto('/reading-list');
+	await expect(page.getByRole('link', { name: 'Rough Waters' })).toBeVisible();
+
+	await page.goto('/settings', { waitUntil: 'networkidle' });
+	await page.getByRole('checkbox', { name: 'Show mature stories' }).uncheck();
+	await page.getByRole('button', { name: 'Save profile' }).click();
+	await expect(page.getByText('Profile saved.')).toBeVisible();
+	await page.goto('/reading-list');
+	await expect(page.getByRole('link', { name: 'Rough Waters' })).toHaveCount(0);
+});
+
+test('a moderator removes a junk challenge, and it leaves the site', async ({ page }) => {
+	await signInAsStaff(page, 'admin@example.com');
+	await page.goto('/admin/prompts');
+	await page.getByRole('textbox', { name: 'Title' }).last().fill('Dr. Dinosaur Junk');
+	await page.getByRole('textbox', { name: 'Prompt' }).last().fill('dvvvvvvvvvvvvvvvvvvvvvvvvvvvv');
+	await page.getByRole('button', { name: 'Add prompt' }).click();
+	await page.getByRole('button', { name: 'Approve & schedule' }).first().click();
+	await expect(page.getByRole('heading', { name: 'No prompts waiting' })).toBeVisible();
+	await page.goto('/admin/challenges');
+	await page.getByRole('button', { name: 'Close now' }).first().click();
+	await page.goto('/challenges');
+	await page.getByRole('link', { name: 'Dr. Dinosaur Junk' }).first().click();
+	const challengeUrl = page.url();
+	await signOut(page);
+
+	await signInAsStaff(page, 'nell@example.com', 'mod');
+	await page.goto(challengeUrl);
+	await page.getByText('Remove challenge (moderator)').click();
+	await page.getByRole('button', { name: 'Remove challenge' }).click();
+	await expect(page).toHaveURL(/\/challenges$/);
+	await expect(page.getByRole('link', { name: 'Dr. Dinosaur Junk' })).toHaveCount(0);
+	expect((await page.goto(challengeUrl))?.status()).toBe(404);
+	await page.goto('/admin/log');
+	await expect(page.getByText('Removed challenge')).toBeVisible();
+	await expect(page.getByText('Dr. Dinosaur Junk')).toBeVisible();
+});

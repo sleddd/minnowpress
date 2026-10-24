@@ -33,7 +33,7 @@ async function readable(param: string, user: User): Promise<number> {
 export const load: PageServerLoad = async ({ params, locals }) => {
 	const id = paramInt(params.id);
 	const viewer = locals.user;
-	const story = await getStory(db, id, viewer?.id);
+	const story = await getStory(db, id, viewer?.id, { showMature: viewer?.showMature });
 	if (!story) error(404, 'Story not found');
 	const matureHidden = matureHiddenFrom(story, viewer);
 

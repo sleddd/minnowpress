@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { formatDate, pluralize } from '#lib/format.ts';
 	import type { ArchiveCreditView } from '#lib/types.ts';
-	import { Link, Text } from '../../atoms/index.ts';
+	import { Icon, Link, Text } from '../../atoms/index.ts';
 	import { ArchiveCredit, TagList } from '../../molecules/index.ts';
 
 	interface Props {
@@ -23,28 +23,37 @@
 	}: Props = $props();
 </script>
 
+<!-- Small caps labels over the tags and the challenge; the facts between dashed rules. -->
 <div class="aside">
 	<section aria-labelledby="aside-tags-title">
-		<Text tone="muted"><span id="aside-tags-title">This story’s tags are</span></Text>
-		{#if tags.length}<TagList {tags} />{:else}<Text size="sm">No tags yet.</Text>{/if}
+		<h2 class="label" id="aside-tags-title">Tags</h2>
+		{#if tags.length}<TagList {tags} />{:else}<Text size="sm" tone="muted">No tags yet.</Text>{/if}
 	</section>
 
 	{#if publishedAt}
-		<section class="facts" aria-label="About this story">
-			<Text>Published on <strong>{formatDate(publishedAt)}</strong></Text>
-			{#if editedAt}<Text>Edited on <strong>{formatDate(editedAt)}</strong></Text>{/if}
-			<Text
-				>{ratingsCount === 0 ? 'Not rated yet' : `Rated ${pluralize(ratingsCount, 'time')}`}</Text
-			>
-		</section>
+		<dl class="facts" aria-label="About this story">
+			<div>
+				<dt class="label">Published</dt>
+				<dd><strong>{formatDate(publishedAt)}</strong></dd>
+			</div>
+			{#if editedAt}<div>
+					<dt class="label">Edited</dt>
+					<dd>{formatDate(editedAt)}</dd>
+				</div>{/if}
+			<div>
+				<dt class="label">Rated</dt>
+				<dd>{ratingsCount === 0 ? 'Not yet' : pluralize(ratingsCount, 'time')}</dd>
+			</div>
+		</dl>
 	{/if}
 
 	{#if challenge}
 		<section aria-labelledby="aside-challenges-title">
-			<Text tone="muted"
-				><span id="aside-challenges-title">Challenges this story has appeared in</span></Text
-			>
-			<ul role="list"><li><Link href="/challenges/{challenge.id}">{challenge.title}</Link></li></ul>
+			<h2 class="label" id="aside-challenges-title">Appeared in</h2>
+			<p class="challenge">
+				<Icon name="fish" filled />
+				<Link href="/challenges/{challenge.id}" variant="story">{challenge.title}</Link>
+			</p>
 		</section>
 	{/if}
 
@@ -65,15 +74,46 @@
 <style>
 	.aside {
 		display: grid;
-		gap: var(--space-5);
+		gap: var(--space-6);
 		align-content: start;
-		padding: var(--space-5);
-		background: var(--color-surface-sunken);
 	}
 
 	section {
 		display: grid;
+		gap: var(--space-3);
+	}
+
+	.label {
+		color: var(--color-text-muted);
+		font-size: var(--text-xs);
+		font-weight: var(--weight-bold);
+		letter-spacing: var(--tracking-eyebrow);
+		text-transform: uppercase;
+	}
+
+	.facts {
+		margin: var(--space-0);
+		border-top: var(--border-width) dashed var(--color-border-strong);
+	}
+
+	.facts div {
+		display: flex;
+		align-items: baseline;
+		justify-content: space-between;
+		gap: var(--space-3);
+		padding-block: var(--space-3);
+		border-bottom: var(--border-width) dashed var(--color-border-strong);
+	}
+
+	dd {
+		margin: var(--space-0);
+	}
+
+	.challenge {
+		display: flex;
+		align-items: center;
 		gap: var(--space-2);
+		color: var(--color-accent);
 	}
 
 	.license {

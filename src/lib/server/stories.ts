@@ -376,6 +376,7 @@ async function storySummaries(
 		.select({
 			id: stories.id,
 			title: stories.title,
+			isMature: stories.isMature,
 			relation: stories.relation,
 			parentId: stories.parentId,
 			archiveAuthor: stories.archiveAuthor,
@@ -391,9 +392,15 @@ async function storySummaries(
 
 /**
  * A story as the given viewer may see it, with its parent and continuations.
- * Drafts are visible only to their author; removed stories to nobody.
+ * Drafts are visible only to their author; removed stories to nobody. Mature stories are
+ * left out of the parent and continuations unless the viewer turned them on.
  */
-export async function getStory(db: DB, storyId: number, viewerId?: number) {
+export async function getStory(
+	db: DB,
+	storyId: number,
+	viewerId?: number,
+	opts: { showMature?: boolean } = {}
+) {
 	const [row] = await db
 		.select({ story: stories, author: { ...authorColumns, bio: users.bio } })
 		.from(stories)
@@ -404,15 +411,21 @@ export async function getStory(db: DB, storyId: number, viewerId?: number) {
 	if (story.status === 'removed') return null;
 	if (story.status === 'draft' && story.authorId !== viewerId) return null;
 
+	const safe = opts.showMature ? undefined : eq(stories.isMature, false);
 	const [parent] = story.parentId
-		? await storySummaries(db, and(eq(stories.id, story.parentId), eq(stories.status, 'published')))
+		? await storySummaries(
+				db,
+				and(eq(stories.id, story.parentId), eq(stories.status, 'published'), safe)
+			)
 		: [];
 	const continuations = await storySummaries(
 		db,
-		and(eq(stories.parentId, story.id), eq(stories.status, 'published'))
+		and(eq(stories.parentId, story.id), eq(stories.status, 'published'), safe)
 	);
 	const challenge = story.challengeId
-		? await db.query.challenges.findFirst({ where: eq(challenges.id, story.challengeId) })
+		? await db.query.challenges.findFirst({
+				where: and(eq(challenges.id, story.challengeId), eq(challenges.status, 'approved'))
+			})
 		: undefined;
 	const tagMap = await tagsFor(db, [story.id]);
 	// The story this one continues sits on the other side: a sequel's parent is its prequel.
@@ -434,9 +447,22 @@ export async function getStory(db: DB, storyId: number, viewerId?: number) {
 
 export type StoryDetail = NonNullable<Awaited<ReturnType<typeof getStory>>>;
 
-/** Every published story in a chain, oldest first. Shape it with buildChainTree. */
-export function getChain(db: DB, chainId: number) {
-	return storySummaries(db, and(eq(stories.chainId, chainId), eq(stories.status, 'published')));
+/**
+ * Every published story in a chain, oldest first. Shape it with buildChainTree. Unless the
+ * viewer turned mature stories on, a mature story is left out along with everything that
+ * continues from it, so nothing hangs loose from a story they can't see.
+ */
+export async function getChain(db: DB, chainId: number, opts: { showMature?: boolean } = {}) {
+	const all = await storySummaries(
+		db,
+		and(eq(stories.chainId, chainId), eq(stories.status, 'published'))
+	);
+	if (opts.showMature) return all;
+	// Oldest first, so a story's parent has always been decided before the story itself.
+	const hidden = new Set<number>();
+	for (const s of all)
+		if (s.isMature || (s.parentId !== null && hidden.has(s.parentId))) hidden.add(s.id);
+	return all.filter((s) => !hidden.has(s.id));
 }
 
 /** From users.published_count, which syncAuthorCounts keeps in step; never a count over the archive. */

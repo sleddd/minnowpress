@@ -101,6 +101,19 @@ describe('recentActivity with ratings', () => {
 	});
 });
 
+describe('recentActivity and mature stories', () => {
+	it('leaves out other people’s mature stories unless the member opted in', async () => {
+		const mine = await createStory(db, me.id, input());
+		await continueStory(db, them.id, mine.id, 'sequel', input({ title: 'Racy', isMature: true }));
+		const theirs = await createStory(db, them.id, input({ title: 'Theirs', isMature: true }));
+		await rateStory(db, me.id, theirs.id, 4);
+
+		expect((await recentActivity(db, me.id)).items).toEqual([]);
+		const shown = await recentActivity(db, me.id, { showMature: true });
+		expect(shown.items.map((e) => e.kind).sort()).toEqual(['rated', 'sequel']);
+	});
+});
+
 describe('recentActivity after moderation', () => {
 	it('leaves out deleted comments and stories that were taken down', async () => {
 		const mine = await createStory(db, me.id, input());

@@ -1,6 +1,13 @@
 import { desc, eq, inArray } from 'drizzle-orm';
 import type { DB } from './db/client';
-import { comments, moderationLog, stories, users, type ModerationLogEntry } from './db/schema';
+import {
+	challenges,
+	comments,
+	moderationLog,
+	stories,
+	users,
+	type ModerationLogEntry
+} from './db/schema';
 
 export type ModerationAction = ModerationLogEntry['action'];
 export type ModerationTarget = ModerationLogEntry['targetType'];
@@ -37,8 +44,13 @@ export async function listModerationLog(db: DB, opts: { page?: number } = {}) {
 	const idsOf = (type: ModerationTarget) =>
 		unique(items.filter((r) => r.entry.targetType === type).map((r) => r.entry.targetId));
 
-	const [storyIds, commentIds, userIds] = [idsOf('story'), idsOf('comment'), idsOf('user')];
-	const [storyRows, commentRows, userRows] = await Promise.all([
+	const [storyIds, commentIds, userIds, challengeIds] = [
+		idsOf('story'),
+		idsOf('comment'),
+		idsOf('user'),
+		idsOf('challenge')
+	];
+	const [storyRows, commentRows, userRows, challengeRows] = await Promise.all([
 		storyIds.length
 			? db
 					.select({ id: stories.id, title: stories.title })
@@ -56,17 +68,27 @@ export async function listModerationLog(db: DB, opts: { page?: number } = {}) {
 					.select({ id: users.id, username: users.username })
 					.from(users)
 					.where(inArray(users.id, userIds))
+			: [],
+		challengeIds.length
+			? db
+					.select({ id: challenges.id, title: challenges.title })
+					.from(challenges)
+					.where(inArray(challenges.id, challengeIds))
 			: []
 	]);
 	const titles = new Map(storyRows.map((s) => [s.id, s.title]));
 	const commentStories = new Map(commentRows.map((c) => [c.id, c.storyId]));
 	const names = new Map(userRows.map((u) => [u.id, u.username]));
+	const challengeTitles = new Map(challengeRows.map((c) => [c.id, c.title]));
 
 	const target = ({ targetType, targetId }: ModerationLogEntry) => {
 		if (targetType === 'story') {
 			const title = titles.get(targetId);
 			return { label: title ?? `Story #${targetId}`, href: title ? `/s/${targetId}` : null };
 		}
+		// A removed challenge has no page left to link to.
+		if (targetType === 'challenge')
+			return { label: challengeTitles.get(targetId) ?? `Challenge #${targetId}`, href: null };
 		if (targetType === 'comment') {
 			const storyId = commentStories.get(targetId);
 			return { label: `Comment #${targetId}`, href: storyId ? `/s/${storyId}` : null };

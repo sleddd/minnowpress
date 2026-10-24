@@ -12,7 +12,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	const opts = { viewer: user, pageSize: COLUMN_SIZE };
 	const [mine, activity, counts, fromFollowed, following, suggested] = await Promise.all([
 		latestOwnStories(db, user.id),
-		recentActivity(db, user.id, { limit: 8 }),
+		recentActivity(db, user.id, { limit: 8, showMature: user.showMature }),
 		storyCounts(db, user.id),
 		followingFeed(db, user.id, opts),
 		listFollowing(db, user.id),

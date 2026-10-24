@@ -21,3 +21,4 @@ export { default as RatingInput } from './RatingInput/RatingInput.svelte';
 export { default as StaffLockNotice } from './StaffLockNotice/StaffLockNotice.svelte';
 export { default as ThemeToggle } from './ThemeToggle/ThemeToggle.svelte';
 export { default as SettingsSection } from './SettingsSection/SettingsSection.svelte';
+export { default as ConfirmForm } from './ConfirmForm/ConfirmForm.svelte';

@@ -43,14 +43,11 @@ describe('StoryView', () => {
 		await expect
 			.element(screen.getByRole('heading', { level: 1, name: 'Test' }))
 			.toBeInTheDocument();
-		await expect.element(screen.getByText('Author:')).toBeInTheDocument();
+		await expect.element(screen.getByText(/^by\s+THX 0477$/)).toBeInTheDocument();
 		await expect
 			.element(screen.getByRole('link', { name: 'THX 0477' }))
 			.toHaveAttribute('href', '/@thx');
-		await expect.element(screen.getByText('Writes about ducks, mostly.')).toBeInTheDocument();
-		await expect
-			.element(screen.getByRole('link', { name: 'Read bio' }))
-			.toHaveAttribute('href', '/@thx');
+		await expect.element(screen.getByText('May 16, 2009')).toBeInTheDocument();
 		await expect.element(screen.getByText(/duck suit/)).toBeInTheDocument();
 		await expect
 			.element(screen.getByRole('img', { name: 'Rated 4.2 out of 5' }))

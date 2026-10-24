@@ -224,8 +224,9 @@ export interface ModerationLogView {
 		| 'unsuspend_user'
 		| 'dismiss_report'
 		| 'mark_mature'
-		| 'unmark_mature';
-	targetType: 'story' | 'comment' | 'user';
+		| 'unmark_mature'
+		| 'remove_challenge';
+	targetType: 'story' | 'comment' | 'user' | 'challenge';
 	targetId: number;
 	reportId: number | null;
 	createdAt: Date;

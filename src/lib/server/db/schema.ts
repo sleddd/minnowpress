@@ -157,7 +157,8 @@ export const challenges = sqliteTable(
 		title: text('title').notNull(),
 		promptText: text('prompt_text').notNull(),
 		source: text('source', { enum: ['ai', 'human'] }).notNull(),
-		status: text('status', { enum: ['pending', 'approved', 'rejected'] })
+		// removed: taken down by a moderator; hidden everywhere, like a removed story.
+		status: text('status', { enum: ['pending', 'approved', 'rejected', 'removed'] })
 			.notNull()
 			.default('pending'),
 		createdBy: integer('created_by').references(() => users.id, { onDelete: 'set null' }),
@@ -412,7 +413,8 @@ export const MODERATION_ACTIONS = [
 	'unsuspend_user',
 	'dismiss_report',
 	'mark_mature',
-	'unmark_mature'
+	'unmark_mature',
+	'remove_challenge'
 ] as const;
 
 /** Who did what, as a moderator. Rows are never deleted. */
@@ -422,7 +424,7 @@ export const moderationLog = sqliteTable(
 		id: integer('id').primaryKey({ autoIncrement: true }),
 		actorId: integer('actor_id').references(() => users.id, { onDelete: 'set null' }),
 		action: text('action', { enum: MODERATION_ACTIONS }).notNull(),
-		targetType: text('target_type', { enum: ['story', 'comment', 'user'] }).notNull(),
+		targetType: text('target_type', { enum: ['story', 'comment', 'user', 'challenge'] }).notNull(),
 		targetId: integer('target_id').notNull(),
 		// The report that led to the action, if any
 		reportId: integer('report_id').references(() => reports.id, { onDelete: 'set null' }),

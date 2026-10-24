@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { archiveAuthorPath } from '#lib/archive.ts';
-	import { excerpt, pluralize } from '#lib/format.ts';
+	import { formatDate, pluralize } from '#lib/format.ts';
 	import type { StoryDetailView } from '#lib/types.ts';
 	import {
 		Avatar,
@@ -48,7 +48,6 @@
 	const authorHref = $derived(
 		story.archive ? archiveAuthorPath(story.archive.authorUrl) : `/@${story.author.username}`
 	);
-	const bio = $derived(story.archive ? null : story.author.bio?.trim() || null);
 	// A new rating brings back the story's totals; shown here until the page next loads.
 	let average = $derived(story.averageRating);
 	let ratingsCount = $derived(story.ratingsCount);
@@ -59,26 +58,20 @@
 		<Notice>This is a draft. Only you can see it.</Notice>
 	{/if}
 
+	<!-- The title over a dashed rule, then who wrote it and when, over another. -->
 	<h1 id="story-title">{story.title}</h1>
 
 	<div class="author">
-		<Avatar
-			name={authorName}
-			src={story.archive ? null : story.author.avatarUrl}
-			size="lg"
-			shape="square"
-		/>
+		<Avatar name={authorName} src={story.archive ? null : story.author.avatarUrl} size="lg" />
 		<div class="who">
 			<Text>
-				<span class="label">Author:</span>
+				by
 				{#if authorHref}<Link href={authorHref}><em>{authorName}</em></Link>{:else}<em
 						>{authorName}</em
 					>{/if}
 			</Text>
-			{#if bio}
-				<Text size="sm" tone="muted">{excerpt(bio, 140)}</Text>
-				<Link href="/@{story.author.username}" variant="subtle">Read bio</Link>
-			{/if}
+			{#if story.publishedAt}<Text size="sm" tone="muted">{formatDate(story.publishedAt)}</Text
+				>{/if}
 		</div>
 	</div>
 
@@ -183,6 +176,8 @@
 	}
 
 	h1 {
+		padding-bottom: var(--space-5);
+		border-bottom: var(--border-width) dashed var(--color-border-strong);
 		color: var(--color-display);
 		font-size: var(--text-story-title);
 		font-weight: var(--weight-bold);
@@ -192,18 +187,15 @@
 
 	.author {
 		display: flex;
-		align-items: flex-start;
+		align-items: center;
 		gap: var(--space-4);
+		padding-bottom: var(--space-5);
+		border-bottom: var(--border-width) dashed var(--color-border-strong);
 	}
 
 	.who {
 		display: grid;
-		gap: var(--space-1);
 		justify-items: start;
-	}
-
-	.label {
-		color: var(--color-text-muted);
 	}
 
 	.body :global(.prose) {

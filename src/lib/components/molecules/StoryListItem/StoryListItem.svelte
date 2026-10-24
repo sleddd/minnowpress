@@ -125,7 +125,7 @@
 
 	.excerpt {
 		max-width: var(--measure);
-		font-size: var(--text-story);
+		font-size: var(--text-md);
 		line-height: var(--leading-prose);
 	}
 
@@ -134,24 +134,11 @@
 		--point: 0.6em;
 		--pad-start: calc(var(--point) + var(--space-3));
 
-		position: relative;
 		padding: var(--space-0) var(--space-3) var(--space-0) var(--pad-start);
 		background: var(--color-accent-soft);
 		color: var(--color-accent);
 		font-style: italic;
 		clip-path: polygon(var(--point) 0, 100% 0, 100% 100%, var(--point) 100%, 0 50%);
-	}
-
-	.relation::before {
-		content: '';
-		position: absolute;
-		top: 50%;
-		left: calc(var(--point) + var(--space-1));
-		width: var(--space-1);
-		height: var(--space-1);
-		border-radius: var(--radius-full);
-		background: var(--color-bg);
-		transform: translateY(-50%);
 	}
 
 	.meta {

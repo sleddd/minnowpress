@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { PUBLIC_APP_NAME } from '$app/env/public';
 	import { PageMeta } from '#lib/components/atoms/index.ts';
+	import { ConfirmForm } from '#lib/components/molecules/index.ts';
 	import { page } from '$app/state';
 	import { pluralize } from '#lib/format.ts';
 	import { ChallengeHeader, StoryFeed } from '#lib/components/organisms/index.ts';
@@ -26,6 +27,14 @@
 		signedIn={Boolean(data.viewer)}
 		appName={PUBLIC_APP_NAME}
 	/>
+	{#if data.isModerator}
+		<ConfirmForm
+			label="Remove challenge (moderator)"
+			message="It disappears from the site. Stories written for it stay up, without the link."
+			action="?/remove"
+			confirm="Remove challenge"
+		/>
+	{/if}
 {/snippet}
 
 <ArticleLayout {aside} divided>

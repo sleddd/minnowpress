@@ -329,6 +329,45 @@ describe('getChain', () => {
 	});
 });
 
+describe('mature stories in chains', () => {
+	it('leaves mature parents and continuations off a story unless the viewer opted in', async () => {
+		const root = await createStory(db, alice.id, input({ title: 'Root', isMature: true }));
+		const safe = await continueStory(db, bob.id, root.id, 'sequel', input({ title: 'Safe' }));
+		await continueStory(db, alice.id, safe.id, 'sequel', input({ title: 'Spicy', isMature: true }));
+		await continueStory(db, alice.id, safe.id, 'prequel', input({ title: 'Mild' }));
+
+		const hidden = (await getStory(db, safe.id, bob.id))!;
+		expect(hidden.parent).toBeNull();
+		expect(hidden.prequels.map((s) => s.title)).toEqual(['Mild']);
+		expect(hidden.sequels).toEqual([]);
+
+		const shown = (await getStory(db, safe.id, bob.id, { showMature: true }))!;
+		expect(shown.prequels.map((s) => s.title)).toEqual(['Root', 'Mild']);
+		expect(shown.sequels.map((s) => s.title)).toEqual(['Spicy']);
+	});
+
+	it('drops a mature story from a chain along with everything that continues from it', async () => {
+		const root = await createStory(db, alice.id, input({ title: 'Root' }));
+		const dark = await continueStory(
+			db,
+			bob.id,
+			root.id,
+			'sequel',
+			input({ title: 'Dark', isMature: true })
+		);
+		await continueStory(db, alice.id, dark.id, 'sequel', input({ title: 'After Dark' }));
+		await continueStory(db, alice.id, root.id, 'prequel', input({ title: 'Before' }));
+
+		expect((await getChain(db, root.id)).map((s) => s.title)).toEqual(['Root', 'Before']);
+		expect((await getChain(db, root.id, { showMature: true })).map((s) => s.title)).toEqual([
+			'Root',
+			'Dark',
+			'After Dark',
+			'Before'
+		]);
+	});
+});
+
 describe('getUserStories', () => {
 	it('lists published stories, plus drafts when asked', async () => {
 		await createStory(db, alice.id, input());

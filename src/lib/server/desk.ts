@@ -28,13 +28,14 @@ export interface ActivityPage {
 
 /**
  * The member's activity, newest first: comments on, continuations of and ratings of their
- * stories by other people, and their own ratings of other stories. Each kind is read
+ * stories by other people, and their own ratings of other stories. Other people's mature
+ * stories are left out unless the member turned mature stories on. Each kind is read
  * newest first and at most one page long, then merged, so an older page costs no more.
  */
 export async function recentActivity(
 	db: DB,
 	userId: number,
-	opts: { limit?: number; before?: Date | null } = {}
+	opts: { limit?: number; before?: Date | null; showMature?: boolean } = {}
 ): Promise<ActivityPage> {
 	const limit = opts.limit ?? 10;
 	const take = limit + 1;
@@ -81,6 +82,7 @@ export async function recentActivity(
 					// rather than walking every published story newest first to find them.
 					sql`+${child.status} = 'published'`,
 					ne(stories.status, 'removed'),
+					opts.showMature ? undefined : eq(child.isMature, false),
 					older(child.publishedAt)
 				)
 			)
@@ -115,7 +117,12 @@ export async function recentActivity(
 			.from(ratings)
 			.innerJoin(stories, eq(stories.id, ratings.storyId))
 			.where(
-				and(eq(ratings.userId, userId), eq(stories.status, 'published'), older(ratings.updatedAt))
+				and(
+					eq(ratings.userId, userId),
+					eq(stories.status, 'published'),
+					opts.showMature ? undefined : eq(stories.isMature, false),
+					older(ratings.updatedAt)
+				)
 			)
 			.orderBy(desc(ratings.updatedAt))
 			.limit(take)

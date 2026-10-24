@@ -21,12 +21,14 @@
 		unsuspend_user: 'Lifted suspension',
 		dismiss_report: 'Dismissed report',
 		mark_mature: 'Marked mature',
-		unmark_mature: 'Cleared mature'
+		unmark_mature: 'Cleared mature',
+		remove_challenge: 'Removed challenge'
 	};
 	const serious = new Set<ModerationLogView['action']>([
 		'remove_story',
 		'delete_comment',
-		'suspend_user'
+		'suspend_user',
+		'remove_challenge'
 	]);
 
 	const byline = (entry: ModerationLogView) =>

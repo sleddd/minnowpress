@@ -1,9 +1,10 @@
-import { error } from '@sveltejs/kit';
-import { countEntries, getChallenge } from '#lib/server/challenges.ts';
+import { error, redirect } from '@sveltejs/kit';
+import { isModerator, requireModerator } from '#lib/server/auth.ts';
+import { countEntries, getChallenge, removeChallenge } from '#lib/server/challenges.ts';
 import { db } from '#lib/server/db/index.ts';
 import { challengeFeed } from '#lib/server/feeds.ts';
 import { pageParam, paramInt } from '#lib/server/forms.ts';
-import type { PageServerLoad } from './$types';
+import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ params, locals, url }) => {
 	const id = paramInt(params.id);
@@ -13,5 +14,17 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 		viewer: locals.user,
 		page: pageParam(url.searchParams.get('page'))
 	});
-	return { challenge: { ...challenge, entries: await countEntries(db, id) }, feed };
+	return {
+		challenge: { ...challenge, entries: await countEntries(db, id) },
+		feed,
+		isModerator: isModerator(locals.user)
+	};
+};
+
+export const actions: Actions = {
+	remove: async ({ params, locals }) => {
+		const mod = requireModerator(locals.user);
+		await removeChallenge(db, paramInt(params.id), mod.id);
+		redirect(303, '/challenges');
+	}
 };

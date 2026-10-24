@@ -6,9 +6,9 @@ import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
 	const user = requireUser(locals.user, url);
-	// Saved stories stay visible even if they're mature: the reader chose them.
+	// Saved mature stories show only while the reader has mature stories turned on.
 	const feed = await bookmarksFeed(db, user.id, {
-		viewer: { id: user.id, showMature: true },
+		viewer: user,
 		page: pageParam(url.searchParams.get('page'))
 	});
 	return { feed };

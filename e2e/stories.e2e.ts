@@ -116,7 +116,7 @@ test('authors can edit their published stories', async ({ page }) => {
 	await page.getByRole('textbox', { name: 'Title' }).fill('Fog, Revised');
 	await page.getByRole('button', { name: 'update!' }).click();
 	await expect(page.getByRole('heading', { level: 1, name: 'Fog, Revised' })).toBeVisible();
-	await expect(page.getByText(/Edited on/)).toBeVisible();
+	await expect(page.getByText('Edited', { exact: true })).toBeVisible();
 });
 
 test('authors can delete their published stories', async ({ page }) => {

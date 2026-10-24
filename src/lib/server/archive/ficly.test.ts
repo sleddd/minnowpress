@@ -176,7 +176,7 @@ describe('importFicly', () => {
 		expect(before).toMatchObject({ parentId: test.id, relation: 'prequel', chainId: test.id });
 		expect(untitled).toMatchObject({ parentId: after.id, chainId: test.id });
 		expect(orphan).toMatchObject({ parentId: null, relation: null, chainId: orphan.id });
-		expect((await getChain(db, test.id)).map((s) => s.id).sort()).toEqual(
+		expect((await getChain(db, test.id, { showMature: true })).map((s) => s.id).sort()).toEqual(
 			[test.id, after.id, before.id, untitled.id].sort()
 		);
 
