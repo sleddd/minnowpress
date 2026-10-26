@@ -64,6 +64,7 @@
 		isModerator={data.isModerator}
 		rating={data.rating}
 		bookmarked={data.bookmarked}
+		following={data.following}
 		matureHidden={data.matureHidden}
 		{reported}
 		onrated={(totals) => (ratingsCount = totals.count)}

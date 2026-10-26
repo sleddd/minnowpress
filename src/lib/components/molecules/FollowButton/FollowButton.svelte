@@ -27,7 +27,7 @@
 {:else if signedIn}
 	<form method="POST" action="/@{username}?/{following ? 'unfollow' : 'follow'}" use:enhance>
 		<Button variant={following ? 'secondary' : 'primary'} size="sm" type="submit">
-			{following ? 'Following' : 'Follow'}
+			{following ? 'Unfollow' : 'Follow'}
 		</Button>
 	</form>
 {:else}

@@ -14,7 +14,7 @@
 		RatingFish,
 		Text
 	} from '../../atoms/index.ts';
-	import { BookmarkButton, RatingInput, ReportForm } from '../../molecules/index.ts';
+	import { BookmarkButton, FollowButton, RatingInput, ReportForm } from '../../molecules/index.ts';
 
 	interface Props {
 		story: StoryDetailView;
@@ -24,6 +24,8 @@
 		/** The viewer's own rating. */
 		rating?: number | null;
 		bookmarked?: boolean;
+		/** Whether the viewer follows the author. */
+		following?: boolean;
 		reported?: boolean;
 		/** A mature story the viewer hasn't opted in to: its text was withheld. */
 		matureHidden?: boolean;
@@ -38,6 +40,7 @@
 		isModerator,
 		rating = null,
 		bookmarked = false,
+		following = false,
 		reported = false,
 		matureHidden = false,
 		onrated
@@ -73,6 +76,12 @@
 			{#if story.publishedAt}<Text size="sm" tone="muted">{formatDate(story.publishedAt)}</Text
 				>{/if}
 		</div>
+		<!-- Archive stories are credited to their Ficly author, who has no account to follow. -->
+		{#if published && !isAuthor && !story.archive}
+			<div class="follow">
+				<FollowButton username={story.author.username} {following} {signedIn} />
+			</div>
+		{/if}
 	</div>
 
 	{#if story.isMature}<div><Badge tone="warning">Mature</Badge></div>{/if}
@@ -196,6 +205,10 @@
 	.who {
 		display: grid;
 		justify-items: start;
+	}
+
+	.follow {
+		margin-left: auto;
 	}
 
 	.body :global(.prose) {

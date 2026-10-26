@@ -57,7 +57,7 @@ test('write, continue, comment, rate, and follow', async ({ page }) => {
 
 	await page.getByRole('link', { name: 'Alice' }).first().click();
 	await page.getByRole('button', { name: 'Follow' }).click();
-	await expect(page.getByRole('button', { name: 'Following' })).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Unfollow' })).toBeVisible();
 
 	// Alice shows up on Bob's desk, with her story.
 	await page.goto('/desk');

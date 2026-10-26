@@ -8,7 +8,7 @@ import { RateLimitError } from '#lib/server/errors.ts';
 import { fileReport, REPORT_REASONS, type ReportReason } from '#lib/server/moderation.ts';
 import { deliverSafely, notifyComment, notifyContinuation } from '#lib/server/notifications.ts';
 import { getUserRating, rateStory } from '#lib/server/ratings.ts';
-import { addComment, deleteComment, listComments } from '#lib/server/social.ts';
+import { addComment, deleteComment, isFollowing, listComments } from '#lib/server/social.ts';
 import {
 	deleteStory,
 	getStory,
@@ -37,10 +37,12 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	if (!story) error(404, 'Story not found');
 	const matureHidden = matureHiddenFrom(story, viewer);
 
-	const [comments, rating, bookmarked] = await Promise.all([
+	const isAuthor = viewer?.id === story.authorId;
+	const [comments, rating, bookmarked, following] = await Promise.all([
 		story.status === 'published' && !matureHidden ? listComments(db, id) : [],
 		viewer ? getUserRating(db, viewer.id, id) : null,
-		viewer ? isBookmarked(db, viewer.id, id) : false
+		viewer ? isBookmarked(db, viewer.id, id) : false,
+		viewer && !isAuthor && !story.archive ? isFollowing(db, viewer.id, story.authorId) : false
 	]);
 
 	return {
@@ -49,7 +51,8 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		comments,
 		rating,
 		bookmarked,
-		isAuthor: viewer?.id === story.authorId,
+		following,
+		isAuthor,
 		isModerator: isModerator(viewer)
 	};
 };

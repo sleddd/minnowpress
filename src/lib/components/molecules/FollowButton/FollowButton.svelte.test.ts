@@ -21,9 +21,7 @@ describe('FollowButton', () => {
 			following: true,
 			signedIn: true
 		});
-		await expect
-			.element(screen.getByRole('button', { name: 'Following' }))
-			.toHaveClass('secondary');
+		await expect.element(screen.getByRole('button', { name: 'Unfollow' })).toHaveClass('secondary');
 		expect(screen.container.querySelector('form')?.getAttribute('action')).toBe('/@jane?/unfollow');
 	});
 
