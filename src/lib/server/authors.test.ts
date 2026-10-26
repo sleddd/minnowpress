@@ -11,8 +11,8 @@ import {
 	listWriters
 } from './authors';
 import type { DB } from './db/client';
-import { stories, users } from './db/schema';
-import { follow } from './social';
+import { archiveAuthors, stories, users } from './db/schema';
+import { follow, followArchiveAuthor } from './social';
 import {
 	countPublishedStories,
 	createStory,
@@ -171,6 +171,21 @@ describe('listFollowing', () => {
 			['Bo', '/@bo', 0]
 		]);
 		expect(await listFollowing(db, ana.id)).toEqual([]);
+	});
+	it('includes followed Ficly archive authors', async () => {
+		const me = await makeUser(db);
+		const url = 'https://ficly.com/authors/kevin/';
+		await db.insert(archiveAuthors).values({ url, name: 'Kevin', stories: 68 });
+		await followArchiveAuthor(db, me.id, url);
+		expect(await listFollowing(db, me.id)).toEqual([
+			{
+				name: 'Kevin',
+				href: '/authors/ficly/kevin',
+				stories: 68,
+				avatarUrl: null,
+				archive: true
+			}
+		]);
 	});
 });
 

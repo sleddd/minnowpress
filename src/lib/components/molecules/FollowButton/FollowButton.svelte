@@ -3,21 +3,26 @@
 	import { Button, Link } from '../../atoms/index.ts';
 
 	interface Props {
+		/** Who to follow: a member's username, or an archive author's name when `path` is given. */
 		username: string;
+		/** The page whose follow and unfollow actions to post to; a member's profile by default. */
+		path?: string;
 		following: boolean;
 		signedIn: boolean;
 		/** button: a regular button · quiet: small dashed italic "follow" */
 		look?: 'button' | 'quiet';
 	}
 
-	let { username, following, signedIn, look = 'button' }: Props = $props();
+	let { username, path, following, signedIn, look = 'button' }: Props = $props();
+
+	const page = $derived(path ?? `/@${username}`);
 </script>
 
 {#if look === 'quiet'}
 	<form
 		class="quiet"
 		method="POST"
-		action="/@{username}?/{following ? 'unfollow' : 'follow'}"
+		action="{page}?/{following ? 'unfollow' : 'follow'}"
 		use:enhance
 	>
 		<button type="submit" aria-label="{following ? 'Unfollow' : 'Follow'} {username}"
@@ -25,13 +30,13 @@
 		>
 	</form>
 {:else if signedIn}
-	<form method="POST" action="/@{username}?/{following ? 'unfollow' : 'follow'}" use:enhance>
+	<form method="POST" action="{page}?/{following ? 'unfollow' : 'follow'}" use:enhance>
 		<Button variant={following ? 'secondary' : 'primary'} size="sm" type="submit">
 			{following ? 'Unfollow' : 'Follow'}
 		</Button>
 	</form>
 {:else}
-	<Link href="/login?next=/@{username}" variant="button">Follow</Link>
+	<Link href="/login?next={page}" variant="button">Follow</Link>
 {/if}
 
 <style>

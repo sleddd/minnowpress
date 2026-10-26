@@ -1,7 +1,7 @@
 import { and, asc, count, eq, isNull, sql } from 'drizzle-orm';
 import { normalizeBody, validateComment } from '#lib/text.ts';
 import type { DB } from './db/client';
-import { comments, follows, stories, users } from './db/schema';
+import { archiveAuthors, archiveFollows, comments, follows, stories, users } from './db/schema';
 import { ForbiddenError, NotFoundError, ValidationError } from './errors';
 import { assertUnderHourlyLimit } from './limits';
 import { logModeration } from './moderation-log';
@@ -33,6 +33,40 @@ export async function isFollowing(
 ): Promise<boolean> {
 	const row = await db.query.follows.findFirst({
 		where: and(eq(follows.followerId, followerId), eq(follows.followeeId, followeeId))
+	});
+	return Boolean(row);
+}
+
+/** Follows a Ficly archive author, by their ficly.com URL. */
+export async function followArchiveAuthor(
+	db: DB,
+	followerId: number,
+	authorUrl: string
+): Promise<void> {
+	const author = await db.query.archiveAuthors.findFirst({
+		where: eq(archiveAuthors.url, authorUrl)
+	});
+	if (!author) throw new NotFoundError('Author not found');
+	await db.insert(archiveFollows).values({ followerId, authorUrl }).onConflictDoNothing();
+}
+
+export async function unfollowArchiveAuthor(
+	db: DB,
+	followerId: number,
+	authorUrl: string
+): Promise<void> {
+	await db
+		.delete(archiveFollows)
+		.where(and(eq(archiveFollows.followerId, followerId), eq(archiveFollows.authorUrl, authorUrl)));
+}
+
+export async function isFollowingArchiveAuthor(
+	db: DB,
+	followerId: number,
+	authorUrl: string
+): Promise<boolean> {
+	const row = await db.query.archiveFollows.findFirst({
+		where: and(eq(archiveFollows.followerId, followerId), eq(archiveFollows.authorUrl, authorUrl))
 	});
 	return Boolean(row);
 }

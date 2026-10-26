@@ -1,7 +1,7 @@
 import { and, asc, count, desc, eq, gt, inArray, notInArray, sql } from 'drizzle-orm';
 import { archiveAuthorPath, ficlyAuthorUrl } from '#lib/archive.ts';
 import type { DB } from './db/client';
-import { archiveAuthors, follows, stories, users } from './db/schema';
+import { archiveAuthors, archiveFollows, follows, stories, users } from './db/schema';
 import { likePattern } from './feeds';
 
 export const AUTHORS_PAGE_SIZE = 30;
@@ -13,7 +13,7 @@ export interface AuthorEntry {
 	stories: number;
 	avatarUrl: string | null;
 	archive: boolean;
-	/** Members only; archive authors can't be followed. */
+	/** Members only. */
 	username?: string | null;
 }
 
@@ -177,25 +177,54 @@ export async function authorsToFollow(
 	return [...writers, ...archive];
 }
 
-/** The members a user follows, most recently followed first, with their published story counts. */
+/**
+ * The members and Ficly archive authors a user follows, most recently followed first, with
+ * their published story counts.
+ */
 export async function listFollowing(db: DB, userId: number): Promise<AuthorEntry[]> {
-	const rows = await db
-		.select({
-			username: users.username,
-			displayName: users.displayName,
-			avatarUrl: users.avatarUrl,
-			stories: users.publishedCount
-		})
-		.from(follows)
-		.innerJoin(users, eq(users.id, follows.followeeId))
-		.where(eq(follows.followerId, userId))
-		.orderBy(desc(follows.createdAt), users.displayName);
-	return rows.map((r) => ({
-		name: r.displayName,
-		username: r.username,
-		href: `/@${r.username}`,
-		stories: Number(r.stories),
-		avatarUrl: r.avatarUrl,
-		archive: false
-	}));
+	const [members, archive] = await Promise.all([
+		db
+			.select({
+				username: users.username,
+				displayName: users.displayName,
+				avatarUrl: users.avatarUrl,
+				stories: users.publishedCount,
+				followedAt: follows.createdAt
+			})
+			.from(follows)
+			.innerJoin(users, eq(users.id, follows.followeeId))
+			.where(eq(follows.followerId, userId)),
+		db
+			.select({
+				url: archiveAuthors.url,
+				name: archiveAuthors.name,
+				stories: archiveAuthors.stories,
+				followedAt: archiveFollows.createdAt
+			})
+			.from(archiveFollows)
+			.innerJoin(archiveAuthors, eq(archiveAuthors.url, archiveFollows.authorUrl))
+			.where(eq(archiveFollows.followerId, userId))
+	]);
+	const entries = [
+		...members.map((r) => ({
+			followedAt: r.followedAt,
+			name: r.displayName,
+			username: r.username,
+			href: `/@${r.username}`,
+			stories: Number(r.stories),
+			avatarUrl: r.avatarUrl,
+			archive: false
+		})),
+		...archive.map((r) => ({
+			followedAt: r.followedAt,
+			name: r.name,
+			href: archiveAuthorPath(r.url) ?? r.url,
+			stories: r.stories,
+			avatarUrl: null,
+			archive: true
+		}))
+	];
+	return entries
+		.sort((a, b) => b.followedAt.getTime() - a.followedAt.getTime() || a.name.localeCompare(b.name))
+		.map(({ followedAt, ...entry }) => (void followedAt, entry));
 }

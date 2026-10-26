@@ -2,7 +2,7 @@ import { and, desc, eq, gt, inArray, isNotNull, isNull, sql, type SQL } from 'dr
 import type { SQLiteSelect } from 'drizzle-orm/sqlite-core';
 import { averageRating } from '#lib/rating.ts';
 import type { DB } from './db/client';
-import { bookmarks, follows, stories, storyTags, tags, users } from './db/schema';
+import { archiveFollows, bookmarks, follows, stories, storyTags, tags, users } from './db/schema';
 import { archiveColumns, archiveOf, authorColumns, tagsFor } from './stories';
 
 export const PAGE_SIZE = 20;
@@ -147,20 +147,24 @@ export function archiveChainsFeed(db: DB, opts: FeedOptions = {}) {
 }
 
 /**
- * Driven from the member's follows: each followed writer's stories come off the
- * (author, status, published_at) index, so this reads those writers' stories and nothing else.
+ * Stories by the members and Ficly archive authors a member follows, newest first. Driven from
+ * the follows: each followed writer's stories come off the (author, status, published_at) or
+ * (archive_author_url, status, published_at) index, so this reads those writers' stories and
+ * nothing else.
  */
 export function followingFeed(db: DB, userId: number, opts: FeedOptions = {}) {
 	return feed(
 		db,
-		undefined,
+		sql`${stories.id} in (
+			select s.id from ${follows} f join ${stories} s on s.author_id = f.followee_id
+			where f.follower_id = ${userId}
+			union all
+			select s.id from ${archiveFollows} a join ${stories} s on s.archive_author_url = a.author_url
+			where a.follower_id = ${userId}
+		)`,
 		[desc(stories.publishedAt)],
 		opts,
-		(q) =>
-			q.innerJoin(
-				follows,
-				and(eq(follows.followeeId, stories.authorId), eq(follows.followerId, userId))
-			),
+		undefined,
 		true,
 		true
 	);

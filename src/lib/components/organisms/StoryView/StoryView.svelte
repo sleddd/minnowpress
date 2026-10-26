@@ -76,10 +76,15 @@
 			{#if story.publishedAt}<Text size="sm" tone="muted">{formatDate(story.publishedAt)}</Text
 				>{/if}
 		</div>
-		<!-- Archive stories are credited to their Ficly author, who has no account to follow. -->
-		{#if published && !isAuthor && !story.archive}
+		<!-- On archive stories this follows the Ficly author, through their author page. -->
+		{#if published && !isAuthor && authorHref}
 			<div class="follow">
-				<FollowButton username={story.author.username} {following} {signedIn} />
+				<FollowButton
+					username={story.archive ? authorName : story.author.username}
+					path={authorHref}
+					{following}
+					{signedIn}
+				/>
 			</div>
 		{/if}
 	</div>

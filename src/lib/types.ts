@@ -157,7 +157,7 @@ export interface AuthorEntryView {
 	stories: number;
 	avatarUrl: string | null;
 	archive: boolean;
-	/** Members only; archive authors can't be followed. */
+	/** Members only. */
 	username?: string | null;
 }
 

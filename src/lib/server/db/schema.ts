@@ -330,6 +330,20 @@ export const follows = sqliteTable(
 	(t) => [primaryKey({ columns: [t.followerId, t.followeeId] })]
 );
 
+/** Ficly archive authors a member follows; they have no account, so they're keyed by their ficly.com URL. */
+export const archiveFollows = sqliteTable(
+	'archive_follows',
+	{
+		followerId: integer('follower_id')
+			.notNull()
+			.references(() => users.id, { onDelete: 'cascade' }),
+		// No foreign key: archive_authors is rebuilt from the stories, which would cascade these away.
+		authorUrl: text('author_url').notNull(),
+		createdAt: createdAt()
+	},
+	(t) => [primaryKey({ columns: [t.followerId, t.authorUrl] })]
+);
+
 export const tags = sqliteTable(
 	'tags',
 	{

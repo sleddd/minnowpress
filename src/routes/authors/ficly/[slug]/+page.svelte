@@ -16,7 +16,12 @@
 {/snippet}
 
 <ArticleLayout {aside} divided>
-	<ArchiveAuthor author={data.author} part="header" />
+	<ArchiveAuthor
+		author={data.author}
+		part="header"
+		following={data.following}
+		signedIn={Boolean(data.viewer)}
+	/>
 	<StoryFeed
 		label="Stories by {data.author.name}"
 		showAuthor={false}

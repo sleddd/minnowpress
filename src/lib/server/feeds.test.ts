@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { DB } from './db/client';
-import { challenges, stories } from './db/schema';
+import { archiveAuthors, challenges, stories } from './db/schema';
 import {
 	activeFeed,
 	archiveAuthorFeed,
@@ -19,7 +19,7 @@ import {
 	storySearchFeed,
 	tagFeed
 } from './feeds';
-import { follow } from './social';
+import { follow, followArchiveAuthor, unfollowArchiveAuthor } from './social';
 import { createStory, deleteStory, updateStory, type StoryInput } from './stories';
 import { PAD, createTestDb, makeUser } from './testing/db';
 
@@ -272,5 +272,29 @@ describe('archiveChainsFeed', () => {
 		for (const parent of [good, best, member])
 			await createStory(db, bob.id, input(), { parentId: parent.id, relation: 'sequel' });
 		expect(ids(await archiveChainsFeed(db))).toEqual([best.id, good.id]);
+	});
+});
+
+describe('followingFeed with archive authors', () => {
+	it('includes stories by followed Ficly authors, and drops them on unfollow', async () => {
+		const url = 'https://ficly.com/authors/kevin/';
+		await db.insert(archiveAuthors).values({ url, name: 'Kevin', stories: 1 });
+		const old = await createStory(db, alice.id, input());
+		await db
+			.update(stories)
+			.set({
+				archiveId: 1,
+				archiveUrl: 'u',
+				archiveAuthorUrl: url,
+				publishedAt: new Date('2012-01-01')
+			})
+			.where(eq(stories.id, old.id));
+		const fresh = await createStory(db, bob.id, input());
+		const carol = await makeUser(db);
+		await follow(db, carol.id, bob.id);
+		await followArchiveAuthor(db, carol.id, url);
+		expect(ids(await followingFeed(db, carol.id))).toEqual([fresh.id, old.id]);
+		await unfollowArchiveAuthor(db, carol.id, url);
+		expect(ids(await followingFeed(db, carol.id))).toEqual([fresh.id]);
 	});
 });

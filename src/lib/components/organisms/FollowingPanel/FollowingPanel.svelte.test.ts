@@ -52,10 +52,13 @@ describe('FollowingPanel', () => {
 		await expect.element(screen.getByText('A few to start with:')).toBeInTheDocument();
 		await expect.element(screen.getByRole('button', { name: 'Follow bo' })).toBeInTheDocument();
 		expect(screen.container.querySelector('form')?.getAttribute('action')).toBe('/@bo?/follow');
-		// Archive authors can't be followed, so they get a reading link instead.
+		// Archive authors are followed through their author page.
 		await expect
-			.element(screen.getByRole('link', { name: 'read' }))
-			.toHaveAttribute('href', '/authors/ficly/thx0477');
+			.element(screen.getByRole('button', { name: 'Follow THX 0477' }))
+			.toBeInTheDocument();
+		expect(screen.container.querySelectorAll('form')[1]?.getAttribute('action')).toBe(
+			'/authors/ficly/thx0477?/follow'
+		);
 		await expect
 			.element(screen.getByRole('link', { name: 'Find more writers' }))
 			.toHaveAttribute('href', '/authors');

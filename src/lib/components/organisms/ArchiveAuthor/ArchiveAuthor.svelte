@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { pluralize } from '#lib/format.ts';
+	import { archiveAuthorPath } from '#lib/archive.ts';
 	import { Avatar, Heading, Link } from '../../atoms/index.ts';
+	import { FollowButton } from '../../molecules/index.ts';
 
 	interface Props {
 		author: {
@@ -12,9 +14,14 @@
 		};
 		/** header: ribbon, name, and credit · card: the sidebar summary */
 		part: 'header' | 'card';
+		/** Whether the viewer follows this author (header only). */
+		following?: boolean;
+		signedIn?: boolean;
 	}
 
-	let { author, part }: Props = $props();
+	let { author, part, following = false, signedIn = false }: Props = $props();
+
+	const path = $derived(archiveAuthorPath(author.url));
 
 	const years = $derived(
 		author.firstYear && author.lastYear
@@ -34,6 +41,7 @@
 			BY-SA 3.0.
 			<Link href={author.url} rel="noopener">Their page on ficly.com</Link>
 		</p>
+		{#if path}<FollowButton username={author.name} {path} {following} {signedIn} />{/if}
 	</header>
 {:else}
 	<section class="card" aria-label="About {author.name}">

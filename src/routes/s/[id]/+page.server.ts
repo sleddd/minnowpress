@@ -8,7 +8,13 @@ import { RateLimitError } from '#lib/server/errors.ts';
 import { fileReport, REPORT_REASONS, type ReportReason } from '#lib/server/moderation.ts';
 import { deliverSafely, notifyComment, notifyContinuation } from '#lib/server/notifications.ts';
 import { getUserRating, rateStory } from '#lib/server/ratings.ts';
-import { addComment, deleteComment, isFollowing, listComments } from '#lib/server/social.ts';
+import {
+	addComment,
+	deleteComment,
+	isFollowing,
+	isFollowingArchiveAuthor,
+	listComments
+} from '#lib/server/social.ts';
 import {
 	deleteStory,
 	getStory,
@@ -42,7 +48,11 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		story.status === 'published' && !matureHidden ? listComments(db, id) : [],
 		viewer ? getUserRating(db, viewer.id, id) : null,
 		viewer ? isBookmarked(db, viewer.id, id) : false,
-		viewer && !isAuthor && !story.archive ? isFollowing(db, viewer.id, story.authorId) : false
+		!viewer || isAuthor
+			? false
+			: story.archive
+				? isFollowingArchiveAuthor(db, viewer.id, story.archive.authorUrl ?? '')
+				: isFollowing(db, viewer.id, story.authorId)
 	]);
 
 	return {

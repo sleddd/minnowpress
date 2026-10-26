@@ -36,6 +36,14 @@
 							<AuthorListItem {author} />
 							{#if author.username}
 								<FollowButton username={author.username} following={false} signedIn look="quiet" />
+							{:else if author.archive}
+								<FollowButton
+									username={author.name}
+									path={author.href}
+									following={false}
+									signedIn
+									look="quiet"
+								/>
 							{:else}
 								<Link href={author.href}>read</Link>
 							{/if}
