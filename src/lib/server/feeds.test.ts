@@ -5,6 +5,7 @@ import { challenges, stories } from './db/schema';
 import {
 	activeFeed,
 	archiveAuthorFeed,
+	archiveChainsFeed,
 	authorFeed,
 	challengeFeed,
 	followingFeed,
@@ -244,5 +245,32 @@ describe('popularFeed', () => {
 		expect(ids(feed)).toEqual([many.id, one.id]);
 		expect(feed.items[0].averageRating).toBe(4.8);
 		expect(feed.items[0].ratingsCount).toBe(20);
+	});
+});
+
+describe('archiveChainsFeed', () => {
+	it('lists continued, rated archive stories best-rated first', async () => {
+		const good = await createStory(db, alice.id, input());
+		const best = await createStory(db, alice.id, input());
+		const lonely = await createStory(db, alice.id, input());
+		const member = await createStory(db, alice.id, input());
+		for (const [i, s] of [good, best, lonely].entries())
+			await db
+				.update(stories)
+				.set({ archiveId: i + 1, archiveUrl: `u${i}` })
+				.where(eq(stories.id, s.id));
+		for (const [s, total] of [
+			[good, 40],
+			[best, 50],
+			[lonely, 50],
+			[member, 50]
+		] as const)
+			await db
+				.update(stories)
+				.set({ ratingsCount: 10, ratingsTotal: total })
+				.where(eq(stories.id, s.id));
+		for (const parent of [good, best, member])
+			await createStory(db, bob.id, input(), { parentId: parent.id, relation: 'sequel' });
+		expect(ids(await archiveChainsFeed(db))).toEqual([best.id, good.id]);
 	});
 });

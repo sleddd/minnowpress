@@ -1,4 +1,4 @@
-import { and, desc, eq, gt, inArray, isNull, sql, type SQL } from 'drizzle-orm';
+import { and, desc, eq, gt, inArray, isNotNull, isNull, sql, type SQL } from 'drizzle-orm';
 import type { SQLiteSelect } from 'drizzle-orm/sqlite-core';
 import { averageRating } from '#lib/rating.ts';
 import type { DB } from './db/client';
@@ -126,6 +126,24 @@ export function popularFeed(db: DB, opts: FeedOptions = {}) {
 
 export function activeFeed(db: DB, opts: FeedOptions = {}) {
 	return feed(db, gt(stories.activityScore, 0), [desc(stories.activityScore)], opts);
+}
+
+/**
+ * Ficly archive stories that someone continued, best-rated first: the chains that grew back
+ * then, for topping up Active while few chains are growing here. Walks the popularity index
+ * and checks each story for a sequel or prequel through the parent index.
+ */
+export function archiveChainsFeed(db: DB, opts: FeedOptions = {}) {
+	return feed(
+		db,
+		and(
+			gt(stories.popularity, 0),
+			isNotNull(stories.archiveId),
+			sql`exists (select 1 from stories c where c.parent_id = ${stories.id} and c.status = 'published')`
+		),
+		[desc(stories.popularity), desc(stories.ratingsCount)],
+		opts
+	);
 }
 
 /**

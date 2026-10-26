@@ -65,7 +65,7 @@
 	<details class="menu" bind:open>
 		<summary aria-label="Menu"><Icon name={open ? 'close' : 'menu'} /></summary>
 		<div class="panel">
-			<SearchForm id="menu-search" value={query} />
+			<div class="menu-search"><SearchForm id="menu-search" value={query} /></div>
 			<ul class="menu-links" role="list">
 				{#each sections as section (section.href)}
 					<li>
@@ -311,6 +311,11 @@
 			padding: var(--space-5);
 		}
 
+		/* On the page, the box has no ribbon behind it to set it off. */
+		.menu-search :global(.search) {
+			border: var(--border-width) solid var(--color-border-strong);
+		}
+
 		.menu-links li {
 			border-bottom: var(--border-width) dashed var(--color-border-strong);
 		}
@@ -324,15 +329,19 @@
 			align-items: center;
 			justify-content: space-between;
 			padding-block: var(--space-3);
-			color: var(--color-text);
+			color: var(--color-accent);
 			font-size: var(--text-2xl);
 			font-style: italic;
 			font-weight: var(--weight-bold);
 			text-decoration: none;
 		}
 
+		/* Every link is teal, so the current section is underlined, as in the ribbon. */
 		.menu-links a[aria-current='page'] {
-			color: var(--color-accent);
+			text-decoration: underline;
+			text-decoration-thickness: 3px;
+			text-decoration-color: var(--color-nav-underline);
+			text-underline-offset: 0.2em;
 		}
 
 		.menu-links :global(.icon) {

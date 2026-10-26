@@ -32,7 +32,9 @@
 			},
 			{
 				title: 'Active',
-				blurb: 'Chains growing right now.',
+				blurb: data.activeHasArchivePicks
+					? 'Chains growing right now, with favorites from the Ficly archive.'
+					: 'Chains growing right now.',
 				stories: data.active,
 				more: { href: '/stories?tab=active', label: 'More active' }
 			},
