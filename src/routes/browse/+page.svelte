@@ -40,7 +40,9 @@
 			},
 			{
 				title: 'Recent',
-				blurb: 'Still warm off the press.',
+				blurb: data.recentHasArchivePicks
+					? 'Still warm off the press, with favorites from the Ficly archive.'
+					: 'Still warm off the press.',
 				stories: data.recent,
 				more: { href: '/stories', label: 'More recent' }
 			}

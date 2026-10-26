@@ -17,26 +17,28 @@ export interface HomeColumns {
 }
 
 /**
- * The home page's Popular and Recent columns. Recent is stories written here, newest first.
+ * The Popular and Recent columns on the home and browse pages, `size` stories each. Popular is
+ * a random few of the best-rated. Recent is stories written here, newest first.
  * Until there are enough of those, it's topped up with well-rated archive stories rather than
  * the last stories posted before Ficly closed, which few people read or rated.
  */
 export async function homeColumns(
 	db: DB,
 	viewer: FeedOptions['viewer'],
+	size = COLUMN_SIZE,
 	random = Math.random
 ): Promise<HomeColumns> {
 	const [best, members] = await Promise.all([
 		popularFeed(db, { viewer, pageSize: ARCHIVE_PICKS_POOL }),
-		memberFeed(db, { viewer, pageSize: COLUMN_SIZE })
+		memberFeed(db, { viewer, pageSize: size })
 	]);
-	const popular = sample(best.items.slice(0, POPULAR_POOL), COLUMN_SIZE, random);
+	const popular = sample(best.items.slice(0, POPULAR_POOL), size, random);
 	// A new story that is already well rated shouldn't show up in both columns.
 	const shown = new Set(popular.map((s) => s.id));
 	const recent = members.items.filter((s) => !shown.has(s.id));
 	const picks = sample(
 		best.items.slice(POPULAR_POOL).filter((s) => !shown.has(s.id)),
-		COLUMN_SIZE - recent.length,
+		size - recent.length,
 		random
 	);
 	return { popular, recent: [...recent, ...picks], recentHasArchivePicks: picks.length > 0 };
