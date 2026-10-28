@@ -7,11 +7,12 @@ import {
 	listArchiveAuthors,
 	refreshAllAuthorCounts,
 	refreshArchiveAuthors,
+	refreshArchiveNames,
 	listFollowing,
 	listWriters
 } from './authors';
 import type { DB } from './db/client';
-import { archiveAuthors, stories, users } from './db/schema';
+import { archiveAuthors, archiveNames, stories, users } from './db/schema';
 import { follow, followArchiveAuthor } from './social';
 import {
 	countPublishedStories,
@@ -224,5 +225,17 @@ describe('published story counts', () => {
 		await db.update(users).set({ publishedCount: 99 });
 		await refreshAllAuthorCounts(db);
 		expect(await count(a.id)).toBe(1);
+	});
+});
+
+describe('archive names', () => {
+	it('keeps every Ficly author’s name and slug, even after their stories come down', async () => {
+		await archiveStory('Kevin Lawver', 'kevin-lawver');
+		await archiveStory('galaxycat', '2525');
+		await refreshArchiveAuthors(db);
+		await db.update(stories).set({ status: 'removed' });
+		await refreshArchiveNames(db);
+		const keys = (await db.select().from(archiveNames)).map((r) => r.key).sort();
+		expect(keys).toEqual(['2525', 'galaxycat', 'kevinlawver']);
 	});
 });

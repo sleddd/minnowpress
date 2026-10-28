@@ -1,8 +1,8 @@
-import { and, eq, gt, ne, or } from 'drizzle-orm';
+import { and, eq, gt, isNull, ne, or } from 'drizzle-orm';
 import type { Theme } from '#lib/theme.ts';
-import { countGraphemes, RESERVED_USERNAMES, validateUsername } from '#lib/text.ts';
+import { countGraphemes, nameKey, RESERVED_USERNAMES, validateUsername } from '#lib/text.ts';
 import type { DB } from './db/client';
-import { users, type User } from './db/schema';
+import { archiveNames, users, type User } from './db/schema';
 import { ForbiddenError, NotFoundError, ValidationError } from './errors';
 
 export const DISPLAY_NAME_MAX = 50;
@@ -44,6 +44,30 @@ export async function usernameTaken(
 	return Boolean(row);
 }
 
+export const ARCHIVE_NAME = 'That name belongs to a writer from the Ficly archive.';
+
+/**
+ * Whether a name reads as someone else's (see nameKey): a Ficly archive author's, or another
+ * member's username or display name. Usernames and display names share one pool, so nobody can
+ * pass as someone else in either.
+ */
+export async function nameClash(
+	db: DB,
+	name: string,
+	opts: { except?: number } = {}
+): Promise<'archive' | 'member' | null> {
+	const key = nameKey(name);
+	if (await db.query.archiveNames.findFirst({ where: eq(archiveNames.key, key) })) return 'archive';
+	const row = await db.query.users.findFirst({
+		columns: { id: true },
+		where: and(
+			or(eq(users.usernameKey, key), eq(users.displayNameKey, key)),
+			opts.except === undefined ? undefined : ne(users.id, opts.except)
+		)
+	});
+	return row ? 'member' : null;
+}
+
 /** A username derived from the email's local part, made unique with a number if needed. */
 export async function suggestUsername(db: DB, email: string): Promise<string> {
 	let base = email
@@ -56,7 +80,9 @@ export async function suggestUsername(db: DB, email: string): Promise<string> {
 	if (base.length < 3) base = `writer${base}`;
 	let candidate = base;
 	const taken = async (name: string) =>
-		RESERVED_USERNAMES.has(name) || (await usernameTaken(db, name));
+		RESERVED_USERNAMES.has(name) ||
+		(await usernameTaken(db, name)) ||
+		Boolean(await nameClash(db, name));
 	for (let n = 2; await taken(candidate); n++) {
 		candidate = `${base}${n}`;
 	}
@@ -81,6 +107,8 @@ export async function findOrCreateUserByEmail(
 			email,
 			username,
 			displayName: username,
+			usernameKey: nameKey(username),
+			displayNameKey: nameKey(username),
 			role: opts.adminEmails?.includes(email) ? 'admin' : 'user',
 			referralCode: opts.referralCode ?? null
 		})
@@ -158,10 +186,22 @@ export async function updateProfile(
 		errors.username = 'That username is reserved.';
 	else if (await usernameTaken(db, username, { except: userId, now }))
 		errors.username = 'That username is taken.';
-	const displayLength = countGraphemes(input.displayName.trim(), DISPLAY_NAME_MAX);
+	// Only a changed name is checked, so nobody loses a name they already have.
+	else if (!current || nameKey(current.username) !== nameKey(username)) {
+		const clash = await nameClash(db, username, { except: userId });
+		if (clash) errors.username = clash === 'archive' ? ARCHIVE_NAME : 'That username is taken.';
+	}
+	const displayName = input.displayName.trim();
+	const displayLength = countGraphemes(displayName, DISPLAY_NAME_MAX);
 	if (displayLength === 0) errors.displayName = 'Enter a display name.';
 	else if (displayLength > DISPLAY_NAME_MAX)
 		errors.displayName = `Up to ${DISPLAY_NAME_MAX} characters.`;
+	else if (!current || nameKey(current.displayName) !== nameKey(displayName)) {
+		const clash = await nameClash(db, displayName, { except: userId });
+		if (clash)
+			errors.displayName =
+				clash === 'archive' ? ARCHIVE_NAME : 'Another writer already goes by that name.';
+	}
 	if (countGraphemes(input.bio.trim(), BIO_MAX) > BIO_MAX)
 		errors.bio = `Bios are ${BIO_MAX} characters or less.`;
 	const website = normalizeWebsite(input.website);
@@ -176,7 +216,9 @@ export async function updateProfile(
 		.update(users)
 		.set({
 			username,
-			displayName: input.displayName.trim(),
+			displayName,
+			usernameKey: nameKey(username),
+			displayNameKey: nameKey(displayName),
 			bio: input.bio.trim(),
 			website,
 			showMature: input.showMature,
@@ -187,6 +229,20 @@ export async function updateProfile(
 		.returning();
 	if (!user) throw new NotFoundError('User not found');
 	return user;
+}
+
+/** Fills in name keys missing from members saved before they existed. The nightly job runs it. */
+export async function fillNameKeys(db: DB): Promise<void> {
+	const rows = await db
+		.select({ id: users.id, username: users.username, displayName: users.displayName })
+		.from(users)
+		.where(or(isNull(users.usernameKey), isNull(users.displayNameKey)));
+	for (const row of rows) {
+		await db
+			.update(users)
+			.set({ usernameKey: nameKey(row.username), displayNameKey: nameKey(row.displayName) })
+			.where(eq(users.id, row.id));
+	}
 }
 
 export async function updateTheme(db: DB, userId: number, theme: Theme): Promise<User> {

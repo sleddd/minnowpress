@@ -1,9 +1,14 @@
+import { eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { DB } from './db/client';
+import { archiveNames, users } from './db/schema';
 import { ForbiddenError, NotFoundError, ValidationError } from './errors';
 import { createTestDb, makeUser } from './testing/db';
 import {
 	ADULT_REQUIRED,
+	ARCHIVE_NAME,
+	fillNameKeys,
+	nameClash,
 	confirmAdult,
 	findOrCreateUserByEmail,
 	getUserById,
@@ -186,7 +191,7 @@ describe('username hold', () => {
 	const now = new Date('2026-10-22T12:00:00Z');
 	const profile = (username: string): ProfileInput => ({
 		username,
-		displayName: 'Jane',
+		displayName: username,
 		bio: '',
 		website: '',
 		showMature: false
@@ -282,5 +287,68 @@ describe('updateNotifications', () => {
 				notifyDigest: true
 			})
 		).rejects.toThrow(NotFoundError);
+	});
+});
+
+describe('names nobody else can take', () => {
+	const profile = (o: Partial<ProfileInput> = {}): ProfileInput => ({
+		username: 'jane',
+		displayName: 'Jane',
+		bio: '',
+		website: '',
+		showMature: false,
+		...o
+	});
+
+	it('keeps Ficly authors’ names and slugs for them, however they’re written', async () => {
+		await db.insert(archiveNames).values([{ key: 'kevinlawver' }, { key: 'galaxycat' }]);
+		const u = await makeUser(db);
+		await expect(
+			updateProfile(db, u.id, profile({ username: 'kevin_lawver' }))
+		).rejects.toMatchObject({ fields: { username: ARCHIVE_NAME } });
+		await expect(
+			updateProfile(db, u.id, profile({ displayName: 'Galaxy Cat' }))
+		).rejects.toMatchObject({ fields: { displayName: ARCHIVE_NAME } });
+		expect(await suggestUsername(db, 'galaxycat@example.com')).toBe('galaxycat2');
+	});
+
+	it('won’t let a member take another member’s username or display name', async () => {
+		await makeUser(db, { username: 'jane_doe', displayName: 'Sea Glass' });
+		const u = await makeUser(db);
+		await expect(updateProfile(db, u.id, profile({ username: 'janedoe' }))).rejects.toMatchObject({
+			fields: { username: 'That username is taken.' }
+		});
+		await expect(
+			updateProfile(db, u.id, profile({ displayName: 'Jane Doe' }))
+		).rejects.toMatchObject({
+			fields: { displayName: 'Another writer already goes by that name.' }
+		});
+		await expect(
+			updateProfile(db, u.id, profile({ displayName: 'séa-glass' }))
+		).rejects.toBeInstanceOf(ValidationError);
+	});
+
+	it('lets members keep their own names, even ones claimed since', async () => {
+		const u = await makeUser(db, { username: 'galaxycat', displayName: 'Galaxy Cat' });
+		await db.insert(archiveNames).values({ key: 'galaxycat' });
+		const saved = await updateProfile(
+			db,
+			u.id,
+			profile({ username: 'galaxycat', displayName: 'galaxycat' })
+		);
+		expect(saved.displayNameKey).toBe('galaxycat');
+		expect(await nameClash(db, 'Galaxy_Cat', { except: u.id })).toBe('archive');
+	});
+
+	it('gives new members and older rows their name keys', async () => {
+		const { user } = await findOrCreateUserByEmail(db, 'Mia.Reyes@example.com');
+		expect(user.usernameKey).toBe('miareyes');
+		const old = await makeUser(db, { displayName: 'Old Timer' });
+		await db
+			.update(users)
+			.set({ usernameKey: null, displayNameKey: null })
+			.where(eq(users.id, old.id));
+		await fillNameKeys(db);
+		expect(await nameClash(db, 'old-timer')).toBe('member');
 	});
 });

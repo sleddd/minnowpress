@@ -25,6 +25,10 @@ export const users = sqliteTable(
 		formerUsername: text('former_username'),
 		usernameChangedAt: integer('username_changed_at', { mode: 'timestamp_ms' }),
 		displayName: text('display_name').notNull(),
+		// nameKey() of the username and display name, so no two writers read as the same name.
+		// Filled on every save; the nightly job fills any missing.
+		usernameKey: text('username_key'),
+		displayNameKey: text('display_name_key'),
 		bio: text('bio').notNull().default(''),
 		website: text('website'),
 		avatarUrl: text('avatar_url'),
@@ -65,6 +69,8 @@ export const users = sqliteTable(
 	},
 	(t) => [
 		index('users_former_username_idx').on(t.formerUsername),
+		index('users_username_key_idx').on(t.usernameKey),
+		index('users_display_name_key_idx').on(t.displayNameKey),
 		index('users_published_count_idx').on(t.isArchive, t.publishedCount),
 		index('users_referral_code_idx').on(t.referralCode)
 	]
@@ -329,6 +335,14 @@ export const follows = sqliteTable(
 	},
 	(t) => [primaryKey({ columns: [t.followerId, t.followeeId] })]
 );
+
+/**
+ * nameKey() of every Ficly author's name and URL slug, so no member can take a name that reads
+ * as theirs. Only ever added to: a name stays off limits after its stories are taken down.
+ */
+export const archiveNames = sqliteTable('archive_names', {
+	key: text('key').primaryKey()
+});
 
 /** Ficly archive authors a member follows; they have no account, so they're keyed by their ficly.com URL. */
 export const archiveFollows = sqliteTable(

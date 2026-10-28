@@ -121,6 +121,16 @@ export function validateStoryInput(input: {
 	return errors;
 }
 
+/**
+ * What a name reads as, for telling whether two names are the same person's: case, accents,
+ * spaces and punctuation are dropped, so "Kevin Lawver", "kevin_lawver" and "kevin-lawver" all
+ * match. A name made only of symbols or emoji keeps them, so it still has something to compare.
+ */
+export function nameKey(name: string): string {
+	const folded = name.normalize('NFKD').replace(/\p{M}/gu, '').toLowerCase();
+	return folded.replace(/[^\p{L}\p{N}]/gu, '') || folded.trim().replace(/\s+/g, ' ');
+}
+
 export function validateUsername(username: string): string | undefined {
 	if (!USERNAME_PATTERN.test(username))
 		return '3–20 characters: lowercase letters, numbers and underscores.';

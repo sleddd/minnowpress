@@ -1,7 +1,8 @@
-import { and, asc, count, desc, eq, gt, inArray, notInArray, sql } from 'drizzle-orm';
-import { archiveAuthorPath, ficlyAuthorUrl } from '#lib/archive.ts';
+import { and, asc, count, desc, eq, gt, inArray, isNotNull, notInArray, sql } from 'drizzle-orm';
+import { archiveAuthorPath, archiveAuthorSlug, ficlyAuthorUrl } from '#lib/archive.ts';
+import { nameKey } from '#lib/text.ts';
 import type { DB } from './db/client';
-import { archiveAuthors, archiveFollows, follows, stories, users } from './db/schema';
+import { archiveAuthors, archiveFollows, archiveNames, follows, stories, users } from './db/schema';
 import { likePattern } from './feeds';
 
 export const AUTHORS_PAGE_SIZE = 30;
@@ -94,6 +95,32 @@ export async function refreshArchiveAuthors(db: DB): Promise<void> {
 		from ${stories}
 		where ${stories.archiveAuthorUrl} is not null and ${stories.status} = 'published'
 		group by ${stories.archiveAuthorUrl}`);
+	await refreshArchiveNames(db);
+}
+
+/**
+ * Adds every Ficly author's name and URL slug to archive_names, from stories of any status, so
+ * none can be taken by a member. Never removes one.
+ */
+export async function refreshArchiveNames(db: DB): Promise<void> {
+	const rows = await db
+		.selectDistinct({ url: stories.archiveAuthorUrl, name: stories.archiveAuthor })
+		.from(stories)
+		.where(isNotNull(stories.archiveAuthorUrl));
+	const keys = new Set<string>();
+	for (const { url, name } of rows) {
+		for (const value of [name, archiveAuthorSlug(url)]) {
+			const key = value ? nameKey(value) : '';
+			if (key) keys.add(key);
+		}
+	}
+	const all = [...keys].map((key) => ({ key }));
+	for (let i = 0; i < all.length; i += 500) {
+		await db
+			.insert(archiveNames)
+			.values(all.slice(i, i + 500))
+			.onConflictDoNothing();
+	}
 }
 
 /**

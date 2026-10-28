@@ -7,6 +7,7 @@ import type { DB } from './db/client';
 import { sendWeeklyDigests, type NotifyContext } from './notifications';
 import { ficlyExamples, generatePrompts, pickSeed, type PromptClient } from './prompts/generate';
 import { refreshAllTagCounts } from './tags';
+import { fillNameKeys } from './users';
 
 /** Vercel Cron sends `Authorization: Bearer $CRON_SECRET`. No secret configured means no access. */
 export function isAuthorizedCron(request: Request, secret: string | undefined): boolean {
@@ -45,7 +46,7 @@ export async function runPromptCron(db: DB, client: PromptClient | null, now = n
 
 /**
  * Daily maintenance: rebuilds the summaries the busy pages read from (tag counts, archive
- * authors) so any drift from moderation is gone by morning, and refreshes the planner
+ * authors, archive names, members' name keys) so any drift from moderation is gone by morning, and refreshes the planner
  * statistics SQLite needs to pick the tag and full-text indexes over a scan of every story.
  * The Active feed is not rescored here; a visit to a page that shows it does that
  * (refreshActivityIfStale).
@@ -54,6 +55,7 @@ export async function runActivityCron(db: DB) {
 	await refreshAllTagCounts(db);
 	await refreshAllAuthorCounts(db);
 	await refreshArchiveAuthors(db);
+	await fillNameKeys(db);
 	await db.run(sql`analyze`);
 	return json({ ok: true });
 }
