@@ -14,9 +14,10 @@
 
 	let { data, children }: LayoutProps = $props();
 
-	// Vercel Web Analytics, production only. Its SvelteKit helper reads $app/stores, which Kit 3
-	// removed, so page views are reported here, with the route (/@[username]) so they group.
-	if (!dev) inject({ mode: 'production', disableAutoTrack: true });
+	// Vercel Web Analytics. The official injectAnalytics() helper uses $app/stores which was
+	// removed in SvelteKit 3, so we use inject() with manual pageview tracking instead.
+	// This follows the pattern from the docs but with SvelteKit 3 compatibility.
+	inject({ mode: dev ? 'development' : 'production', disableAutoTrack: true });
 	afterNavigate(() => pageview({ route: page.route.id, path: page.url.pathname }));
 </script>
 
