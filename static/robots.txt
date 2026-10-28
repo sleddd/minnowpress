@@ -1,20 +1,3 @@
-# Crawling is limited to the search engines readers use. Other crawlers are turned away by the
-# server as well (see src/lib/server/bots.ts), so this file is the polite version of that rule.
-# Stories, authors, tags and challenges are open to those three; search and account pages are
-# not worth crawling, since each search is real database work.
-User-agent: Googlebot
-User-agent: Bingbot
-User-agent: DuckDuckBot
-Disallow: /search
-Disallow: /login
-Disallow: /logout
-Disallow: /settings
-Disallow: /desk
-Disallow: /reading-list
-Disallow: /write
-Disallow: /admin
-Disallow: /passkeys
-Disallow: /api
-
+# No crawlers at all, search engines included.
 User-agent: *
 Disallow: /
