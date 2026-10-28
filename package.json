@@ -70,10 +70,16 @@
 		"@fontsource-variable/source-serif-4": "5.3.0",
 		"@simplewebauthn/browser": "14.0.0",
 		"@simplewebauthn/server": "14.0.3",
+		"@vercel/analytics": "2.0.1",
 		"qrcode": "1.5.4",
 		"resend": "6.32.1"
 	},
 	"engines": {
 		"node": ">=24"
+	},
+	"overrides": {
+		"@vercel/analytics": {
+			"@sveltejs/kit": "$@sveltejs/kit"
+		}
 	}
 }
